@@ -1,42 +1,37 @@
-# Broking Maths iPhone App
+# Broking Maths iPhone App v3
 
-This is an installable iPhone web app/PWA for quick broking mental maths.
+Plain add/subtract broking maths app.
 
-## What it does
+No separate curve mode. The app uses numbers similar to the supplied level/spread board.
 
-- Generates random 2–3 digit addition/subtraction questions
-- Uses quarters and eighths
-- Default range: 70 to 350
-- Accepts answers as:
-  - `331 5/8`
-  - `331.625`
-  - `331`
-- Includes score, streak, timer, speed mode, hard mode, and adjustable settings
+## Modes
 
-## Use on iPhone
+Easy:
+- rounded board-like values
+- clean 2XX +/- two-digit
+- no fractions
 
-1. Download/extract the ZIP.
-2. Host the folder somewhere simple, for example:
-   - GitHub Pages
-   - Netlify
-   - Vercel
-   - your local computer over Wi-Fi
-3. Open `index.html` URL in Safari.
-4. Tap Share.
-5. Tap Add to Home Screen.
+Medium:
+- exact eighth decimals
+- one level-like number +/- one spread-like number
 
-## Quick local test on Mac/PC
+Hard:
+- exact eighth decimals
+- two-step add/subtract
 
-From inside the folder:
+Mixed:
+- random Easy / Medium / Hard
 
-```bash
-python3 -m http.server 8000
-```
+## Install on GitHub Pages
 
-Then open:
+Upload these files directly to the repository root:
+- index.html
+- app.js
+- styles.css
+- manifest.webmanifest
+- sw.js
+- icon-192.png
+- icon-512.png
 
-```text
-http://localhost:8000
-```
-
-For iPhone on the same Wi-Fi, use your computer's local IP address instead of localhost.
+Then Settings -> Pages -> Deploy from branch -> main -> /root.
+Open the Pages URL in Safari -> Share -> Add to Home Screen.

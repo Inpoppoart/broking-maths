@@ -1,21 +1,25 @@
-const FRACTIONS = [0, 1, 2, 3, 4, 5, 6, 7]; // eighths
-const fracText = {
-  0: "",
-  1: "1/8",
-  2: "1/4",
-  3: "3/8",
-  4: "1/2",
-  5: "5/8",
-  6: "3/4",
-  7: "7/8"
-};
+// Broking Maths v3
+// Plain add/subtract only. No curve labels. Internal unit = eighths.
+
+const LEVEL_NUMBERS = [
+  108.375, 136.875, 155.625, 167.625, 179.750, 188.625,
+  197.500, 206.250, 214.875, 223.500, 287.875, 310.625
+];
+
+const SPREAD_NUMBERS = [
+  18.750, 12.000, 12.125, 8.875, 17.750, 26.000,
+  64.375, 22.750, 24.125, 43.750, 67.875
+];
+
+// Rounded versions for Easy mode. Similar to board, but clean.
+const EASY_LEVELS = [108, 137, 156, 168, 180, 189, 198, 206, 215, 224, 288, 311];
+const EASY_DELTAS = [9, 12, 18, 23, 24, 26, 44, 64, 68];
 
 const state = {
-  mode: "normal",
-  min: 70,
-  max: 350,
+  mode: "easy",
   rounds: 20,
-  allowNeg: false,
+  autoNext: true,
+  acceptRounded: false,
   current: null,
   score: 0,
   streak: 0,
@@ -25,27 +29,44 @@ const state = {
   history: []
 };
 
+const hints = {
+  easy: "Rounded board-like numbers. Clean 2XX ± two-digit.",
+  medium: "Exact board-like values. One level-ish number ± one spread-ish number.",
+  hard: "Two-step arithmetic using exact board-like values.",
+  mixed: "Random Easy / Medium / Hard."
+};
+
 const el = id => document.getElementById(id);
 const qEl = el("question");
 const feedback = el("feedback");
 const input = el("answerInput");
 
+function toEighths(x) { return Math.round(Number(x) * 8); }
+
 function randInt(min, max) {
   return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
-function makeValue() {
-  const whole = randInt(state.min, state.max);
-  const eighth = FRACTIONS[randInt(0, FRACTIONS.length - 1)];
-  return whole * 8 + eighth;
+function choice(arr) {
+  return arr[randInt(0, arr.length - 1)];
 }
 
-function valueToText(eighths) {
+function valueToDecimalText(eighths) {
+  return (eighths / 8).toFixed(3);
+}
+
+function valueToQuestionText(eighths, clean = false) {
+  if (clean) return String(eighths / 8);
+  return (eighths / 8).toFixed(3);
+}
+
+function valueToMixedText(eighths) {
   const sign = eighths < 0 ? "-" : "";
   eighths = Math.abs(eighths);
   const whole = Math.floor(eighths / 8);
   const frac = eighths % 8;
-  return sign + whole + (frac ? " " + fracText[frac] : "");
+  const f = ["", "1/8", "1/4", "3/8", "1/2", "5/8", "3/4", "7/8"][frac];
+  return sign + whole + (f ? " " + f : "");
 }
 
 function parseAnswer(raw) {
@@ -60,12 +81,10 @@ function parseAnswer(raw) {
 
   if (!raw) return null;
 
-  // Decimal input: 331.625
   if (/^-?\d+(\.\d+)?$/.test(raw)) {
     return Math.round(Number(raw) * 8);
   }
 
-  // Mixed fraction: 331 5/8
   const mixed = raw.match(/^(-?\d+)\s+(\d+)\/(\d+)$/);
   if (mixed) {
     const whole = Number(mixed[1]);
@@ -76,7 +95,6 @@ function parseAnswer(raw) {
     return whole * 8 + sign * Math.round((num / den) * 8);
   }
 
-  // Pure fraction: 5/8
   const pure = raw.match(/^(-?\d+)\/(\d+)$/);
   if (pure) {
     const num = Number(pure[1]);
@@ -88,32 +106,102 @@ function parseAnswer(raw) {
   return null;
 }
 
-function generateQuestion() {
+function validRange(ans) {
+  return ans >= 70 * 8 && ans <= 350 * 8;
+}
+
+function makeQuestion() {
+  const mode = state.mode === "mixed" ? choice(["easy", "medium", "hard"]) : state.mode;
+  if (mode === "easy") return makeEasy();
+  if (mode === "medium") return makeMedium();
+  return makeHard();
+}
+
+function makeEasy() {
+  // Clean 2XX +/- two-digit. Uses rounded versions of the provided board.
   let a, b, op, ans;
-  const hard = state.mode === "hard";
-  const speed = state.mode === "speed";
-  let attempts = 0;
+  let tries = 0;
+  do {
+    a = choice(EASY_LEVELS);
+    b = choice(EASY_DELTAS);
+    op = Math.random() < 0.55 ? "+" : "-";
+    ans = op === "+" ? a + b : a - b;
+    tries++;
+  } while ((ans < 70 || ans > 350) && tries < 50);
+
+  return {
+    question: `${a} ${op} ${b}`,
+    answer: ans * 8,
+    clean: true,
+    explainer: `${a} ${op} ${b} = ${ans}`
+  };
+}
+
+function makeMedium() {
+  // Exact board-like single operation: level-ish +/- spread-ish.
+  let a, b, op, ans;
+  let tries = 0;
+  do {
+    a = toEighths(choice(LEVEL_NUMBERS));
+    b = toEighths(choice(SPREAD_NUMBERS));
+    op = Math.random() < 0.55 ? "+" : "-";
+    ans = op === "+" ? a + b : a - b;
+    tries++;
+  } while (!validRange(ans) && tries < 80);
+
+  return {
+    question: `${valueToQuestionText(a)} ${op} ${valueToQuestionText(b)}`,
+    answer: ans,
+    clean: false,
+    explainer: `${valueToMixedText(a)} ${op} ${valueToMixedText(b)} = ${valueToMixedText(ans)}`
+  };
+}
+
+function makeHard() {
+  // Two-step arithmetic. Still plain add/subtract, no labels.
+  const patterns = ["level_plus_two", "level_minus_two", "level_plus_minus", "two_levels_minus_spread"];
+  const p = choice(patterns);
+  let parts, ops, ans;
+  let tries = 0;
 
   do {
-    a = makeValue();
-    b = makeValue();
-    op = Math.random() < (hard ? 0.62 : 0.5) ? "-" : "+";
-    ans = op === "+" ? a + b : a - b;
-    attempts++;
-  } while (!state.allowNeg && ans < 0 && attempts < 100);
+    if (p === "level_plus_two") {
+      parts = [toEighths(choice(LEVEL_NUMBERS)), toEighths(choice(SPREAD_NUMBERS)), toEighths(choice(SPREAD_NUMBERS))];
+      ops = ["+", "+"];
+      ans = parts[0] + parts[1] + parts[2];
+    } else if (p === "level_minus_two") {
+      parts = [toEighths(choice(LEVEL_NUMBERS)), toEighths(choice(SPREAD_NUMBERS)), toEighths(choice(SPREAD_NUMBERS))];
+      ops = ["-", "-"];
+      ans = parts[0] - parts[1] - parts[2];
+    } else if (p === "level_plus_minus") {
+      parts = [toEighths(choice(LEVEL_NUMBERS)), toEighths(choice(SPREAD_NUMBERS)), toEighths(choice(SPREAD_NUMBERS))];
+      ops = ["+", "-"];
+      ans = parts[0] + parts[1] - parts[2];
+    } else {
+      parts = [toEighths(choice(LEVEL_NUMBERS)), toEighths(choice(LEVEL_NUMBERS)), toEighths(choice(SPREAD_NUMBERS))];
+      ops = ["-", "+"];
+      // Keep this realistic by sorting levels so result is not wildly negative.
+      parts[0] = Math.max(parts[0], parts[1]);
+      parts[1] = Math.min(parts[0], parts[1]);
+      ans = parts[0] - parts[1] + parts[2];
+    }
+    tries++;
+  } while (!validRange(ans) && tries < 120);
 
-  if (speed && Math.random() < 0.35) {
-    // Make cleaner, board-like values in speed mode.
-    a = randInt(state.min, state.max) * 8 + [0,2,4,6][randInt(0,3)];
-    b = randInt(state.min, state.max) * 8 + [0,2,4,6][randInt(0,3)];
-    op = Math.random() < 0.5 ? "+" : "-";
-    if (!state.allowNeg && op === "-" && a < b) [a, b] = [b, a];
-    ans = op === "+" ? a + b : a - b;
-  }
+  const question = `${valueToQuestionText(parts[0])} ${ops[0]} ${valueToQuestionText(parts[1])} ${ops[1]} ${valueToQuestionText(parts[2])}`;
 
-  state.current = { a, b, op, ans };
+  return {
+    question,
+    answer: ans,
+    clean: false,
+    explainer: `${valueToMixedText(parts[0])} ${ops[0]} ${valueToMixedText(parts[1])} ${ops[1]} ${valueToMixedText(parts[2])} = ${valueToMixedText(ans)}`
+  };
+}
+
+function generateQuestion() {
+  state.current = makeQuestion();
   state.asked++;
-  qEl.textContent = `${valueToText(a)} ${op} ${valueToText(b)}`;
+  qEl.textContent = state.current.question;
   feedback.className = "feedback";
   feedback.textContent = `Round ${state.asked}/${state.rounds}`;
   input.value = "";
@@ -125,32 +213,34 @@ function checkAnswer() {
   const userAns = parseAnswer(input.value);
   if (userAns === null) {
     feedback.className = "feedback bad";
-    feedback.textContent = "Use format like 331 5/8 or 331.625";
+    feedback.textContent = "Use 155.625 or 155 5/8.";
     return;
   }
 
-  const correct = state.current.ans;
-  const item = `${qEl.textContent} = ${valueToText(correct)}`;
-  if (userAns === correct) {
+  const correct = state.current.answer;
+  const ok = state.acceptRounded ? Math.abs(userAns - correct) <= 0 : userAns === correct;
+  const solved = `${state.current.question} = ${valueToDecimalText(correct)} (${valueToMixedText(correct)})`;
+
+  if (ok) {
     state.score++;
     state.streak++;
     feedback.className = "feedback good";
-    feedback.textContent = "Correct. Hit enter for next.";
-    addHistory("✓ " + item);
+    feedback.textContent = "Correct.";
+    addHistory("✓ " + solved);
     updateStats();
-    setTimeout(nextOrEnd, 350);
+    if (state.autoNext) setTimeout(nextOrEnd, 350);
   } else {
     state.streak = 0;
     feedback.className = "feedback bad";
-    feedback.textContent = `Wrong. Correct: ${valueToText(correct)}`;
-    addHistory("✕ " + item);
+    feedback.textContent = `Wrong. ${valueToDecimalText(correct)} / ${valueToMixedText(correct)}`;
+    addHistory("✕ " + solved);
     updateStats();
   }
 }
 
 function addHistory(text) {
   state.history.unshift(text);
-  state.history = state.history.slice(0, 8);
+  state.history = state.history.slice(0, 10);
   const list = el("history");
   list.innerHTML = "";
   for (const h of state.history) {
@@ -161,19 +251,19 @@ function addHistory(text) {
 }
 
 function nextOrEnd() {
-  if (state.asked >= state.rounds) {
-    endDrill();
-  } else {
-    generateQuestion();
-  }
+  if (state.asked >= state.rounds) endDrill();
+  else generateQuestion();
 }
 
 function skip() {
   if (!state.current) return;
   state.streak = 0;
-  addHistory(`↷ ${qEl.textContent} = ${valueToText(state.current.ans)}`);
+  const correct = state.current.answer;
+  feedback.className = "feedback bad";
+  feedback.textContent = `Skipped. ${valueToDecimalText(correct)} / ${valueToMixedText(correct)}`;
+  addHistory(`↷ ${state.current.question} = ${valueToDecimalText(correct)} (${valueToMixedText(correct)})`);
   updateStats();
-  nextOrEnd();
+  setTimeout(nextOrEnd, 700);
 }
 
 function startDrill() {
@@ -215,24 +305,39 @@ function setMode(mode) {
   document.querySelectorAll(".mode").forEach(btn => {
     btn.classList.toggle("active", btn.dataset.mode === mode);
   });
+  el("modeHint").textContent = hints[mode];
+  qEl.textContent = "Press Start";
+  feedback.className = "feedback";
+  feedback.textContent = "Answer as 155.625, 155 5/8, or 156 if clean.";
+  state.current = null;
 }
 
 function saveSettings() {
-  const min = Number(el("minVal").value);
-  const max = Number(el("maxVal").value);
-  const rounds = Number(el("roundsVal").value);
-  if (min >= max) {
-    feedback.className = "feedback bad";
-    feedback.textContent = "Min must be below max.";
-    return;
-  }
-  state.min = min;
-  state.max = max;
-  state.rounds = rounds;
-  state.allowNeg = el("allowNeg").checked;
+  state.rounds = Number(el("roundsVal").value);
+  state.autoNext = el("autoNext").checked;
+  state.acceptRounded = el("acceptRounded").checked;
   el("settingsPanel").classList.add("hidden");
   feedback.className = "feedback";
-  feedback.textContent = `Saved: ${min}-${max}, ${rounds} rounds.`;
+  feedback.textContent = `Saved: ${state.rounds} rounds.`;
+}
+
+function renderBoard() {
+  const board = el("boardGrid");
+  board.innerHTML = "";
+  const values = [
+    ...LEVEL_NUMBERS.map(v => ["Level-like", v]),
+    ...SPREAD_NUMBERS.map(v => ["Spread-like", v])
+  ];
+  values.forEach(([name, value], i) => {
+    const div = document.createElement("div");
+    const a = document.createElement("span");
+    const b = document.createElement("strong");
+    a.textContent = `${name} ${i + 1}`;
+    b.textContent = value.toFixed(3);
+    div.appendChild(a);
+    div.appendChild(b);
+    board.appendChild(div);
+  });
 }
 
 document.querySelectorAll(".mode").forEach(btn => {
@@ -241,9 +346,10 @@ document.querySelectorAll(".mode").forEach(btn => {
 
 document.querySelectorAll(".fraction-buttons button").forEach(btn => {
   btn.addEventListener("click", () => {
-    const frac = btn.dataset.frac;
-    input.value = input.value.trim();
-    input.value += (input.value ? " " : "") + frac;
+    let v = input.value.trim();
+    const dot = btn.dataset.frac;
+    if (/^-?\d+$/.test(v)) input.value = v + dot;
+    else input.value = v + " " + dot;
     input.focus();
   });
 });
@@ -261,7 +367,8 @@ input.addEventListener("keydown", e => {
   }
 });
 
-// Register service worker for iPhone home-screen install/offline use.
+renderBoard();
+
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {
     navigator.serviceWorker.register("./sw.js").catch(() => {});

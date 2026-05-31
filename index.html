@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-  <meta name="theme-color" content="#111111" />
+  <meta name="theme-color" content="#0b0b0d" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="Broking Maths" />
@@ -17,9 +17,9 @@
     <section class="topbar">
       <div>
         <h1>Broking Maths</h1>
-        <p class="subtitle">quarters, eighths, 70–350</p>
+        <p class="subtitle">board-like add/subtract drills</p>
       </div>
-      <button id="settingsBtn" class="ghost">⚙︎</button>
+      <button id="settingsBtn" class="ghost" aria-label="settings">⚙︎</button>
     </section>
 
     <section class="stats">
@@ -30,26 +30,29 @@
 
     <section class="card">
       <div class="mode-row">
-        <button class="mode active" data-mode="normal">Normal</button>
-        <button class="mode" data-mode="speed">Speed</button>
+        <button class="mode active" data-mode="easy">Easy</button>
+        <button class="mode" data-mode="medium">Medium</button>
         <button class="mode" data-mode="hard">Hard</button>
+        <button class="mode" data-mode="mixed">Mixed</button>
       </div>
 
+      <div id="modeHint" class="mode-hint">Rounded board-like numbers. Clean 2XX ± two-digit.</div>
+
       <div id="question" class="question">Press Start</div>
-      <div id="feedback" class="feedback">Mental math drill for broking boards.</div>
+      <div id="feedback" class="feedback">Answer as 155.625, 155 5/8, or 156 if clean.</div>
 
       <div class="input-wrap">
-        <input id="answerInput" inputmode="decimal" autocomplete="off" placeholder="Answer e.g. 331 5/8 or 331.625" />
+        <input id="answerInput" inputmode="decimal" autocomplete="off" placeholder="Answer" />
       </div>
 
       <div class="fraction-buttons">
-        <button data-frac="1/8">⅛</button>
-        <button data-frac="1/4">¼</button>
-        <button data-frac="3/8">⅜</button>
-        <button data-frac="1/2">½</button>
-        <button data-frac="5/8">⅝</button>
-        <button data-frac="3/4">¾</button>
-        <button data-frac="7/8">⅞</button>
+        <button data-frac=".125">.125</button>
+        <button data-frac=".250">.250</button>
+        <button data-frac=".375">.375</button>
+        <button data-frac=".500">.500</button>
+        <button data-frac=".625">.625</button>
+        <button data-frac=".750">.750</button>
+        <button data-frac=".875">.875</button>
       </div>
 
       <div class="actions">
@@ -57,6 +60,14 @@
         <button id="checkBtn">Check</button>
         <button id="skipBtn">Skip</button>
       </div>
+    </section>
+
+    <section class="board-card">
+      <details>
+        <summary>Number pool</summary>
+        <p class="small-note">Numbers are based on your level/spread board, but questions are plain arithmetic only.</p>
+        <div class="board-grid" id="boardGrid"></div>
+      </details>
     </section>
 
     <section class="history-card">
@@ -67,20 +78,16 @@
     <section id="settingsPanel" class="settings hidden">
       <h2>Settings</h2>
       <label>
-        Min
-        <input id="minVal" type="number" value="70" min="1" max="999" />
-      </label>
-      <label>
-        Max
-        <input id="maxVal" type="number" value="350" min="1" max="999" />
-      </label>
-      <label>
         Rounds
         <input id="roundsVal" type="number" value="20" min="5" max="200" />
       </label>
       <label class="check">
-        <input id="allowNeg" type="checkbox" />
-        allow negative results
+        <input id="autoNext" type="checkbox" checked />
+        auto-next after correct
+      </label>
+      <label class="check">
+        <input id="acceptRounded" type="checkbox" />
+        accept nearest eighth only
       </label>
       <button id="saveSettings" class="primary">Save</button>
     </section>

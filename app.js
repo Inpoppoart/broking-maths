@@ -40,8 +40,8 @@ const state = {
 };
 
 const hints = {
-  easy: "2-digit whole number ± 1-digit fraction (all eighths). E.g. 87 + 4 5/8.",
-  medium: "2-digit with eighths ± smaller 2-digit with eighths. E.g. 91.500 − 23.375.",
+  easy: "2-digit with eighths ± 1-digit with eighths. E.g. 87 3/8 + 4 5/8.",
+  medium: "2-digit with eighths ± smaller 2-digit with eighths. E.g. 91 1/2 − 23 3/8.",
   hard: "Level price ± spread from pool, exact eighths. Up to 350.",
   mixed: "Random Easy / Medium / Hard."
 };
@@ -65,9 +65,14 @@ function valueToDecimalText(eighths) {
   return (eighths / 8).toFixed(3);
 }
 
-function valueToQuestionText(eighths, clean = false) {
-  if (clean) return String(eighths / 8);
-  return (eighths / 8).toFixed(3);
+function valueToFracHtml(eighths) {
+  const sign = eighths < 0 ? "−" : "";
+  eighths = Math.abs(eighths);
+  const whole = Math.floor(eighths / 8);
+  const frac = eighths % 8;
+  const fr = [null, [1, 8], [1, 4], [3, 8], [1, 2], [5, 8], [3, 4], [7, 8]][frac];
+  if (!fr) return sign + whole;
+  return `${sign}${whole}<span class="frac"><span>${fr[0]}</span><span>${fr[1]}</span></span>`;
 }
 
 function valueToMixedText(eighths) {
@@ -128,22 +133,23 @@ function makeQuestion() {
 }
 
 function makeEasy() {
-  // 2-digit integer base ± 1-digit with all eighths fractions.
-  let a, bEighths, op, ans;
+  // 2-digit with eighths ± 1-digit with eighths.
+  let aEighths, bEighths, op, ans;
   let tries = 0;
   do {
-    a = randInt(70, 99);
-    bEighths = randInt(8, 79); // 1.000 to 9.875 in eighths
+    aEighths = randInt(70 * 8, 99 * 8 + 7); // 70.000–99.875
+    bEighths = randInt(8, 79); // 1.000–9.875
     op = Math.random() < 0.55 ? "+" : "-";
-    ans = op === "+" ? a * 8 + bEighths : a * 8 - bEighths;
+    ans = op === "+" ? aEighths + bEighths : aEighths - bEighths;
     tries++;
   } while (!validRange(ans) && tries < 50);
 
   return {
-    question: `${a} ${op} ${valueToMixedText(bEighths)}`,
+    question: `${valueToMixedText(aEighths)} ${op} ${valueToMixedText(bEighths)}`,
+    questionHtml: `${valueToFracHtml(aEighths)} ${op} ${valueToFracHtml(bEighths)}`,
     answer: ans,
     clean: false,
-    explainer: `${a} ${op} ${valueToMixedText(bEighths)} = ${valueToMixedText(ans)}`
+    explainer: `${valueToMixedText(aEighths)} ${op} ${valueToMixedText(bEighths)} = ${valueToMixedText(ans)}`
   };
 }
 
@@ -160,7 +166,8 @@ function makeMedium() {
   } while (!validRange(ans) && tries < 80);
 
   return {
-    question: `${valueToQuestionText(aEighths)} ${op} ${valueToQuestionText(bEighths)}`,
+    question: `${valueToMixedText(aEighths)} ${op} ${valueToMixedText(bEighths)}`,
+    questionHtml: `${valueToFracHtml(aEighths)} ${op} ${valueToFracHtml(bEighths)}`,
     answer: ans,
     clean: false,
     explainer: `${valueToMixedText(aEighths)} ${op} ${valueToMixedText(bEighths)} = ${valueToMixedText(ans)}`
@@ -181,7 +188,8 @@ function makeHard() {
   } while (!validRange(ans) && tries < 80);
 
   return {
-    question: `${valueToQuestionText(a)} ${op} ${valueToQuestionText(b)}`,
+    question: `${valueToMixedText(a)} ${op} ${valueToMixedText(b)}`,
+    questionHtml: `${valueToFracHtml(a)} ${op} ${valueToFracHtml(b)}`,
     answer: ans,
     clean: false,
     explainer: `${valueToMixedText(a)} ${op} ${valueToMixedText(b)} = ${valueToMixedText(ans)}`
@@ -191,7 +199,7 @@ function makeHard() {
 function generateQuestion() {
   state.current = makeQuestion();
   state.asked++;
-  qEl.textContent = state.current.question;
+  qEl.innerHTML = state.current.questionHtml;
   feedback.className = "feedback";
   feedback.textContent = `Round ${state.asked}/${state.rounds}`;
   input.value = "";

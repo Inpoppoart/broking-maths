@@ -150,6 +150,22 @@ button.mode.active {
   line-height: 1.2;
 }
 
+/* ─── Stacked fractions (LaTeX-like) ─── */
+.question .frac {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  vertical-align: -0.45em;
+  font-size: 0.42em;
+  line-height: 1.2;
+  margin-left: 0.22em;
+  font-weight: 600;
+}
+.question .frac > span:last-child {
+  border-top: 1.5px solid currentColor;
+  padding-top: 0.08em;
+}
+
 /* ─── Feedback ─── */
 .feedback {
   text-align: center;

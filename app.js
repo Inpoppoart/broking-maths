@@ -2,18 +2,39 @@
 // Plain add/subtract only. No curve labels. Internal unit = eighths.
 
 const LEVEL_NUMBERS = [
-  108.375, 136.875, 155.625, 167.625, 179.750, 188.625,
-  197.500, 206.250, 214.875, 223.500, 287.875, 310.625
+  // low 70–100
+  74.875, 83.625, 92.500,
+  // 100–160
+  108.375, 116.875, 124.500, 133.250, 142.625, 155.875,
+  // 160–220
+  164.500, 173.250, 182.125, 191.500, 207.375, 216.875,
+  // 220–280
+  225.500, 234.125, 243.625, 258.875, 267.500, 276.375,
+  // 280–350
+  285.125, 304.875, 321.500, 338.125
 ];
 
 const SPREAD_NUMBERS = [
-  18.750, 12.000, 12.125, 8.875, 17.750, 26.000,
-  64.375, 22.750, 24.125, 43.750, 67.875
+  5.500, 8.875, 11.250, 13.625,
+  17.500, 21.875, 25.250, 28.625,
+  33.500, 37.875, 42.250, 46.625,
+  52.500, 57.875, 63.250,
+  69.125, 74.500, 79.875
 ];
 
 // Rounded versions for Easy mode. Similar to board, but clean.
-const EASY_LEVELS = [108, 137, 156, 168, 180, 189, 198, 206, 215, 224, 288, 311];
-const EASY_DELTAS = [9, 12, 18, 23, 24, 26, 44, 64, 68];
+const EASY_LEVELS = [
+  75, 84, 93,
+  109, 117, 125, 134, 143, 156,
+  165, 173, 182, 192, 207, 217,
+  226, 234, 244, 259, 268, 277,
+  285, 305, 322, 338
+];
+const EASY_DELTAS = [6, 9, 12, 15, 18, 22, 25, 29, 34, 38, 43, 47, 53, 58, 64, 69, 75];
+
+let activeLevels = LEVEL_NUMBERS;
+let activeSpreads = SPREAD_NUMBERS;
+let activeEasyLevels = EASY_LEVELS;
 
 const state = {
   mode: "easy",
@@ -122,7 +143,7 @@ function makeEasy() {
   let a, b, op, ans;
   let tries = 0;
   do {
-    a = choice(EASY_LEVELS);
+    a = choice(activeEasyLevels);
     b = choice(EASY_DELTAS);
     op = Math.random() < 0.55 ? "+" : "-";
     ans = op === "+" ? a + b : a - b;
@@ -142,8 +163,8 @@ function makeMedium() {
   let a, b, op, ans;
   let tries = 0;
   do {
-    a = toEighths(choice(LEVEL_NUMBERS));
-    b = toEighths(choice(SPREAD_NUMBERS));
+    a = toEighths(choice(activeLevels));
+    b = toEighths(choice(activeSpreads));
     op = Math.random() < 0.55 ? "+" : "-";
     ans = op === "+" ? a + b : a - b;
     tries++;
@@ -166,19 +187,19 @@ function makeHard() {
 
   do {
     if (p === "level_plus_two") {
-      parts = [toEighths(choice(LEVEL_NUMBERS)), toEighths(choice(SPREAD_NUMBERS)), toEighths(choice(SPREAD_NUMBERS))];
+      parts = [toEighths(choice(activeLevels)), toEighths(choice(activeSpreads)), toEighths(choice(activeSpreads))];
       ops = ["+", "+"];
       ans = parts[0] + parts[1] + parts[2];
     } else if (p === "level_minus_two") {
-      parts = [toEighths(choice(LEVEL_NUMBERS)), toEighths(choice(SPREAD_NUMBERS)), toEighths(choice(SPREAD_NUMBERS))];
+      parts = [toEighths(choice(activeLevels)), toEighths(choice(activeSpreads)), toEighths(choice(activeSpreads))];
       ops = ["-", "-"];
       ans = parts[0] - parts[1] - parts[2];
     } else if (p === "level_plus_minus") {
-      parts = [toEighths(choice(LEVEL_NUMBERS)), toEighths(choice(SPREAD_NUMBERS)), toEighths(choice(SPREAD_NUMBERS))];
+      parts = [toEighths(choice(activeLevels)), toEighths(choice(activeSpreads)), toEighths(choice(activeSpreads))];
       ops = ["+", "-"];
       ans = parts[0] + parts[1] - parts[2];
     } else {
-      parts = [toEighths(choice(LEVEL_NUMBERS)), toEighths(choice(LEVEL_NUMBERS)), toEighths(choice(SPREAD_NUMBERS))];
+      parts = [toEighths(choice(activeLevels)), toEighths(choice(activeLevels)), toEighths(choice(activeSpreads))];
       ops = ["-", "+"];
       // Keep this realistic by sorting levels so result is not wildly negative.
       parts[0] = Math.max(parts[0], parts[1]);
@@ -325,8 +346,8 @@ function renderBoard() {
   const board = el("boardGrid");
   board.innerHTML = "";
   const values = [
-    ...LEVEL_NUMBERS.map(v => ["Level-like", v]),
-    ...SPREAD_NUMBERS.map(v => ["Spread-like", v])
+    ...activeLevels.map(v => ["Level", v]),
+    ...activeSpreads.map(v => ["Spread", v])
   ];
   values.forEach(([name, value], i) => {
     const div = document.createElement("div");
@@ -366,6 +387,65 @@ input.addEventListener("keydown", e => {
     else startDrill();
   }
 });
+
+function parsePool(text) {
+  return text.split(/[\n,]+/)
+    .map(s => s.trim())
+    .filter(s => s.length > 0)
+    .map(Number)
+    .filter(n => !isNaN(n) && n >= 70 && n <= 350 && Math.abs(Math.round(n * 8) - n * 8) < 0.001);
+}
+
+function loadPool() {
+  const lvlText = el("customLevels").value.trim();
+  const sprText = el("customSpreads").value.trim();
+  const lvls = lvlText ? parsePool(lvlText) : null;
+  const sprs = sprText ? parsePool(sprText) : null;
+  const msgs = [];
+
+  if (lvlText && (!lvls || lvls.length === 0)) {
+    el("poolStatus").textContent = "No valid level numbers found. Values must be multiples of 1/8 between 70–350.";
+    return;
+  }
+  if (sprText && (!sprs || sprs.length === 0)) {
+    el("poolStatus").textContent = "No valid spread numbers found. Values must be multiples of 1/8 between 70–350.";
+    return;
+  }
+
+  if (lvls && lvls.length > 0) {
+    activeLevels = lvls;
+    activeEasyLevels = lvls.map(n => Math.round(n));
+    msgs.push(`${lvls.length} level${lvls.length !== 1 ? "s" : ""}`);
+  } else {
+    activeLevels = LEVEL_NUMBERS;
+    activeEasyLevels = EASY_LEVELS;
+  }
+
+  if (sprs && sprs.length > 0) {
+    activeSpreads = sprs;
+    msgs.push(`${sprs.length} spread${sprs.length !== 1 ? "s" : ""}`);
+  } else {
+    activeSpreads = SPREAD_NUMBERS;
+  }
+
+  el("poolStatus").textContent = msgs.length
+    ? `Loaded: ${msgs.join(", ")}. Restart drill to use.`
+    : "Using defaults.";
+  renderBoard();
+}
+
+function resetPool() {
+  activeLevels = LEVEL_NUMBERS;
+  activeSpreads = SPREAD_NUMBERS;
+  activeEasyLevels = EASY_LEVELS;
+  el("customLevels").value = "";
+  el("customSpreads").value = "";
+  el("poolStatus").textContent = "Reset to defaults.";
+  renderBoard();
+}
+
+el("loadPoolBtn").addEventListener("click", loadPool);
+el("resetPoolBtn").addEventListener("click", resetPool);
 
 renderBoard();
 

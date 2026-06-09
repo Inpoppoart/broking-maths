@@ -70,6 +70,22 @@
       </details>
     </section>
 
+    <section class="board-card">
+      <details id="customPoolDetails">
+        <summary>Custom pool</summary>
+        <p class="small-note">Paste your own numbers (comma or newline separated). Leave blank to use defaults. Must be multiples of ⅛ between 70–350.</p>
+        <label class="pool-label">Level numbers</label>
+        <textarea id="customLevels" rows="3" placeholder="e.g. 155.500, 167.875, 212.250"></textarea>
+        <label class="pool-label">Spread numbers</label>
+        <textarea id="customSpreads" rows="2" placeholder="e.g. 12.500, 25.750, 48.375"></textarea>
+        <div class="pool-actions">
+          <button id="loadPoolBtn" class="primary">Load</button>
+          <button id="resetPoolBtn">Reset to defaults</button>
+        </div>
+        <div id="poolStatus" class="small-note"></div>
+      </details>
+    </section>
+
     <section class="history-card">
       <h2>Last answers</h2>
       <ul id="history"></ul>

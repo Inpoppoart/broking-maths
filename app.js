@@ -32,6 +32,10 @@ const EASY_LEVELS = [
 ];
 const EASY_DELTAS = [6, 9, 12, 15, 18, 22, 25, 29, 34, 38, 43, 47, 53, 58, 64, 69, 75];
 
+let activeLevels = LEVEL_NUMBERS;
+let activeSpreads = SPREAD_NUMBERS;
+let activeEasyLevels = EASY_LEVELS;
+
 const state = {
   mode: "easy",
   rounds: 20,
@@ -139,7 +143,7 @@ function makeEasy() {
   let a, b, op, ans;
   let tries = 0;
   do {
-    a = choice(EASY_LEVELS);
+    a = choice(activeEasyLevels);
     b = choice(EASY_DELTAS);
     op = Math.random() < 0.55 ? "+" : "-";
     ans = op === "+" ? a + b : a - b;
@@ -159,8 +163,8 @@ function makeMedium() {
   let a, b, op, ans;
   let tries = 0;
   do {
-    a = toEighths(choice(LEVEL_NUMBERS));
-    b = toEighths(choice(SPREAD_NUMBERS));
+    a = toEighths(choice(activeLevels));
+    b = toEighths(choice(activeSpreads));
     op = Math.random() < 0.55 ? "+" : "-";
     ans = op === "+" ? a + b : a - b;
     tries++;
@@ -183,19 +187,19 @@ function makeHard() {
 
   do {
     if (p === "level_plus_two") {
-      parts = [toEighths(choice(LEVEL_NUMBERS)), toEighths(choice(SPREAD_NUMBERS)), toEighths(choice(SPREAD_NUMBERS))];
+      parts = [toEighths(choice(activeLevels)), toEighths(choice(activeSpreads)), toEighths(choice(activeSpreads))];
       ops = ["+", "+"];
       ans = parts[0] + parts[1] + parts[2];
     } else if (p === "level_minus_two") {
-      parts = [toEighths(choice(LEVEL_NUMBERS)), toEighths(choice(SPREAD_NUMBERS)), toEighths(choice(SPREAD_NUMBERS))];
+      parts = [toEighths(choice(activeLevels)), toEighths(choice(activeSpreads)), toEighths(choice(activeSpreads))];
       ops = ["-", "-"];
       ans = parts[0] - parts[1] - parts[2];
     } else if (p === "level_plus_minus") {
-      parts = [toEighths(choice(LEVEL_NUMBERS)), toEighths(choice(SPREAD_NUMBERS)), toEighths(choice(SPREAD_NUMBERS))];
+      parts = [toEighths(choice(activeLevels)), toEighths(choice(activeSpreads)), toEighths(choice(activeSpreads))];
       ops = ["+", "-"];
       ans = parts[0] + parts[1] - parts[2];
     } else {
-      parts = [toEighths(choice(LEVEL_NUMBERS)), toEighths(choice(LEVEL_NUMBERS)), toEighths(choice(SPREAD_NUMBERS))];
+      parts = [toEighths(choice(activeLevels)), toEighths(choice(activeLevels)), toEighths(choice(activeSpreads))];
       ops = ["-", "+"];
       // Keep this realistic by sorting levels so result is not wildly negative.
       parts[0] = Math.max(parts[0], parts[1]);
@@ -342,8 +346,8 @@ function renderBoard() {
   const board = el("boardGrid");
   board.innerHTML = "";
   const values = [
-    ...LEVEL_NUMBERS.map(v => ["Level-like", v]),
-    ...SPREAD_NUMBERS.map(v => ["Spread-like", v])
+    ...activeLevels.map(v => ["Level", v]),
+    ...activeSpreads.map(v => ["Spread", v])
   ];
   values.forEach(([name, value], i) => {
     const div = document.createElement("div");
@@ -383,6 +387,65 @@ input.addEventListener("keydown", e => {
     else startDrill();
   }
 });
+
+function parsePool(text) {
+  return text.split(/[\n,]+/)
+    .map(s => s.trim())
+    .filter(s => s.length > 0)
+    .map(Number)
+    .filter(n => !isNaN(n) && n >= 70 && n <= 350 && Math.abs(Math.round(n * 8) - n * 8) < 0.001);
+}
+
+function loadPool() {
+  const lvlText = el("customLevels").value.trim();
+  const sprText = el("customSpreads").value.trim();
+  const lvls = lvlText ? parsePool(lvlText) : null;
+  const sprs = sprText ? parsePool(sprText) : null;
+  const msgs = [];
+
+  if (lvlText && (!lvls || lvls.length === 0)) {
+    el("poolStatus").textContent = "No valid level numbers found. Values must be multiples of 1/8 between 70–350.";
+    return;
+  }
+  if (sprText && (!sprs || sprs.length === 0)) {
+    el("poolStatus").textContent = "No valid spread numbers found. Values must be multiples of 1/8 between 70–350.";
+    return;
+  }
+
+  if (lvls && lvls.length > 0) {
+    activeLevels = lvls;
+    activeEasyLevels = lvls.map(n => Math.round(n));
+    msgs.push(`${lvls.length} level${lvls.length !== 1 ? "s" : ""}`);
+  } else {
+    activeLevels = LEVEL_NUMBERS;
+    activeEasyLevels = EASY_LEVELS;
+  }
+
+  if (sprs && sprs.length > 0) {
+    activeSpreads = sprs;
+    msgs.push(`${sprs.length} spread${sprs.length !== 1 ? "s" : ""}`);
+  } else {
+    activeSpreads = SPREAD_NUMBERS;
+  }
+
+  el("poolStatus").textContent = msgs.length
+    ? `Loaded: ${msgs.join(", ")}. Restart drill to use.`
+    : "Using defaults.";
+  renderBoard();
+}
+
+function resetPool() {
+  activeLevels = LEVEL_NUMBERS;
+  activeSpreads = SPREAD_NUMBERS;
+  activeEasyLevels = EASY_LEVELS;
+  el("customLevels").value = "";
+  el("customSpreads").value = "";
+  el("poolStatus").textContent = "Reset to defaults.";
+  renderBoard();
+}
+
+el("loadPoolBtn").addEventListener("click", loadPool);
+el("resetPoolBtn").addEventListener("click", resetPool);
 
 renderBoard();
 

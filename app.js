@@ -22,19 +22,8 @@ const SPREAD_NUMBERS = [
   69.125, 74.500, 79.875
 ];
 
-// Rounded versions for Easy mode. Similar to board, but clean.
-const EASY_LEVELS = [
-  75, 84, 93,
-  109, 117, 125, 134, 143, 156,
-  165, 173, 182, 192, 207, 217,
-  226, 234, 244, 259, 268, 277,
-  285, 305, 322, 338
-];
-const EASY_DELTAS = [6, 9, 12, 15, 18, 22, 25, 29, 34, 38, 43, 47, 53, 58, 64, 69, 75];
-
 let activeLevels = LEVEL_NUMBERS;
 let activeSpreads = SPREAD_NUMBERS;
-let activeEasyLevels = EASY_LEVELS;
 
 const state = {
   mode: "easy",
@@ -51,9 +40,9 @@ const state = {
 };
 
 const hints = {
-  easy: "Rounded board-like numbers. Clean 2XX ± two-digit.",
-  medium: "Exact board-like values. One level-ish number ± one spread-ish number.",
-  hard: "Two-step arithmetic using exact board-like values.",
+  easy: "2-digit whole number ± 1-digit fraction (all eighths). E.g. 87 + 4 5/8.",
+  medium: "2-digit with eighths ± smaller 2-digit with eighths. E.g. 91.500 − 23.375.",
+  hard: "Level price ± spread from pool, exact eighths. Up to 350.",
   mixed: "Random Easy / Medium / Hard."
 };
 
@@ -139,27 +128,48 @@ function makeQuestion() {
 }
 
 function makeEasy() {
-  // Clean 2XX +/- two-digit. Uses rounded versions of the provided board.
-  let a, b, op, ans;
+  // 2-digit integer base ± 1-digit with all eighths fractions.
+  let a, bEighths, op, ans;
   let tries = 0;
   do {
-    a = choice(activeEasyLevels);
-    b = choice(EASY_DELTAS);
+    a = randInt(70, 99);
+    bEighths = randInt(8, 79); // 1.000 to 9.875 in eighths
     op = Math.random() < 0.55 ? "+" : "-";
-    ans = op === "+" ? a + b : a - b;
+    ans = op === "+" ? a * 8 + bEighths : a * 8 - bEighths;
     tries++;
-  } while ((ans < 70 || ans > 350) && tries < 50);
+  } while (!validRange(ans) && tries < 50);
 
   return {
-    question: `${a} ${op} ${b}`,
-    answer: ans * 8,
-    clean: true,
-    explainer: `${a} ${op} ${b} = ${ans}`
+    question: `${a} ${op} ${valueToMixedText(bEighths)}`,
+    answer: ans,
+    clean: false,
+    explainer: `${a} ${op} ${valueToMixedText(bEighths)} = ${valueToMixedText(ans)}`
   };
 }
 
 function makeMedium() {
-  // Exact board-like single operation: level-ish +/- spread-ish.
+  // 2-digit with eighths ± smaller 2-digit with eighths.
+  let aEighths, bEighths, op, ans;
+  let tries = 0;
+  do {
+    aEighths = randInt(70 * 8, 99 * 8 + 7); // 70.000–99.875
+    bEighths = randInt(10 * 8, 49 * 8 + 7); // 10.000–49.875
+    op = Math.random() < 0.55 ? "+" : "-";
+    ans = op === "+" ? aEighths + bEighths : aEighths - bEighths;
+    tries++;
+  } while (!validRange(ans) && tries < 80);
+
+  return {
+    question: `${valueToQuestionText(aEighths)} ${op} ${valueToQuestionText(bEighths)}`,
+    answer: ans,
+    clean: false,
+    explainer: `${valueToMixedText(aEighths)} ${op} ${valueToMixedText(bEighths)} = ${valueToMixedText(ans)}`
+  };
+}
+
+function makeHard() {
+  // Level price from pool ± spread. Single step, bigger numbers up to 350.
+  // Spreads are always 2-digit, so never 3-digit + 3-digit.
   let a, b, op, ans;
   let tries = 0;
   do {
@@ -175,47 +185,6 @@ function makeMedium() {
     answer: ans,
     clean: false,
     explainer: `${valueToMixedText(a)} ${op} ${valueToMixedText(b)} = ${valueToMixedText(ans)}`
-  };
-}
-
-function makeHard() {
-  // Two-step arithmetic. Still plain add/subtract, no labels.
-  const patterns = ["level_plus_two", "level_minus_two", "level_plus_minus", "two_levels_minus_spread"];
-  const p = choice(patterns);
-  let parts, ops, ans;
-  let tries = 0;
-
-  do {
-    if (p === "level_plus_two") {
-      parts = [toEighths(choice(activeLevels)), toEighths(choice(activeSpreads)), toEighths(choice(activeSpreads))];
-      ops = ["+", "+"];
-      ans = parts[0] + parts[1] + parts[2];
-    } else if (p === "level_minus_two") {
-      parts = [toEighths(choice(activeLevels)), toEighths(choice(activeSpreads)), toEighths(choice(activeSpreads))];
-      ops = ["-", "-"];
-      ans = parts[0] - parts[1] - parts[2];
-    } else if (p === "level_plus_minus") {
-      parts = [toEighths(choice(activeLevels)), toEighths(choice(activeSpreads)), toEighths(choice(activeSpreads))];
-      ops = ["+", "-"];
-      ans = parts[0] + parts[1] - parts[2];
-    } else {
-      parts = [toEighths(choice(activeLevels)), toEighths(choice(activeLevels)), toEighths(choice(activeSpreads))];
-      ops = ["-", "+"];
-      // Keep this realistic by sorting levels so result is not wildly negative.
-      parts[0] = Math.max(parts[0], parts[1]);
-      parts[1] = Math.min(parts[0], parts[1]);
-      ans = parts[0] - parts[1] + parts[2];
-    }
-    tries++;
-  } while (!validRange(ans) && tries < 120);
-
-  const question = `${valueToQuestionText(parts[0])} ${ops[0]} ${valueToQuestionText(parts[1])} ${ops[1]} ${valueToQuestionText(parts[2])}`;
-
-  return {
-    question,
-    answer: ans,
-    clean: false,
-    explainer: `${valueToMixedText(parts[0])} ${ops[0]} ${valueToMixedText(parts[1])} ${ops[1]} ${valueToMixedText(parts[2])} = ${valueToMixedText(ans)}`
   };
 }
 
@@ -414,11 +383,9 @@ function loadPool() {
 
   if (lvls && lvls.length > 0) {
     activeLevels = lvls;
-    activeEasyLevels = lvls.map(n => Math.round(n));
     msgs.push(`${lvls.length} level${lvls.length !== 1 ? "s" : ""}`);
   } else {
     activeLevels = LEVEL_NUMBERS;
-    activeEasyLevels = EASY_LEVELS;
   }
 
   if (sprs && sprs.length > 0) {
@@ -437,7 +404,6 @@ function loadPool() {
 function resetPool() {
   activeLevels = LEVEL_NUMBERS;
   activeSpreads = SPREAD_NUMBERS;
-  activeEasyLevels = EASY_LEVELS;
   el("customLevels").value = "";
   el("customSpreads").value = "";
   el("poolStatus").textContent = "Reset to defaults.";

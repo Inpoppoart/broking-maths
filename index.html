@@ -61,18 +61,29 @@
     </div>
     <div id="modeHint" class="mode-hint">2-digit with eighths ± 1-digit with eighths.</div>
 
-    <section class="stage">
-      <div class="order-tag">
-        FLOOR <span id="floorNo">1</span>
-        <span class="order-sep">·</span>
-        ORDER <span id="floorProg">1/5</span>
-      </div>
-      <div id="question" class="question">PRESS&nbsp;DEAL</div>
-      <div id="feedback" class="feedback">Fill the order. Answer like 92 5/8 or 92.625.</div>
+    <div id="conditionBanner" class="cond-banner hidden"></div>
 
-      <div class="input-wrap">
-        <input id="answerInput" inputmode="decimal" autocomplete="off" placeholder="your price" />
-      </div>
+    <section class="stage">
+      <canvas id="chartCanvas"></canvas>
+      <div class="stage-inner">
+        <div id="bossPanel" class="boss-panel hidden">
+          <div class="boss-emoji" id="bossEmoji">📉</div>
+          <div class="boss-info">
+            <div class="boss-name" id="bossName">MARGIN CALL</div>
+            <div class="boss-hp"><div class="boss-hp-fill" id="bossHpFill"></div><span class="boss-hp-text" id="bossHpText">7 / 7</span></div>
+          </div>
+        </div>
+
+        <div class="floor-meta" id="floorMeta">FLOOR 1 · ORDER 1/5</div>
+
+        <div id="orderTimer" class="order-timer hidden"><div id="orderTimerBar" class="order-timer-bar"></div></div>
+
+        <div id="question" class="question">PRESS&nbsp;DEAL</div>
+        <div id="feedback" class="feedback">Fill the order. Answer like 92 5/8 or 92.625.</div>
+
+        <div class="input-wrap">
+          <input id="answerInput" inputmode="decimal" autocomplete="off" placeholder="your price" />
+        </div>
 
       <div class="fraction-buttons">
         <button data-frac=".125">⅛</button>
@@ -84,10 +95,11 @@
         <button data-frac=".875">⅞</button>
       </div>
 
-      <div class="actions">
-        <button id="startBtn" class="primary">DEAL</button>
-        <button id="checkBtn">FILL</button>
-        <button id="skipBtn">PASS</button>
+        <div class="actions">
+          <button id="startBtn" class="primary">DEAL</button>
+          <button id="checkBtn">FILL</button>
+          <button id="skipBtn">PASS</button>
+        </div>
       </div>
     </section>
 
@@ -147,7 +159,7 @@
   <div id="relicDraft" class="overlay hidden">
     <div class="rd-wrap">
       <div class="rd-cleared">✓ FLOOR <span id="rdFloor">1</span> CLEARED</div>
-      <div class="rd-pick">PICK A RELIC</div>
+      <div class="rd-pick" id="rdSub">PICK A RELIC</div>
       <div class="rd-options" id="rdOptions"></div>
       <div class="rd-hint">Your relic persists for the entire run.</div>
     </div>
@@ -163,6 +175,7 @@
         <div><span id="goFloor">1</span><small>floors</small></div>
         <div><span id="goCombo">0</span><small>best combo</small></div>
       </div>
+      <div class="go-best" id="goBest"></div>
       <button id="restartBtn" class="primary big">BACK TO THE PIT</button>
     </div>
   </div>

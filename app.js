@@ -97,9 +97,9 @@ const best = {
 
 // ─── DOM shortcuts ─────────────────────────────────────────────────
 const el = id => document.getElementById(id);
-const qEl = el("question");
+const qEl      = el("question");
 const feedback = el("feedback");
-const input = el("answerInput");
+const input    = el("answerInput");
 
 // ─── Math helpers ─────────────────────────────────────────────────
 function toEighths(x) { return Math.round(Number(x) * 8); }
@@ -430,6 +430,7 @@ function checkAnswer() {
     if (hasRelic("xp")) xpGain = Math.round(xpGain * 1.6);
     addXp(xpGain);
 
+    const doubleMsg = hasRelic("double") && game.fillCount % 4 === 0 ? "2×! " : "";
     feedback.className = "feedback good";
     feedback.textContent = `${speedLabel}${doubled ? "2×! " : ""}Filled +${fmtCash(payout)}  (x${mult})`;
     addHistory("✓ " + game.current.question + " = " + valueToMixedText(correct), "fill");
@@ -456,6 +457,7 @@ function checkAnswer() {
 
     updateHUD();
     if (game.autoNext) setTimeout(nextOrEnd, 480);
+
   } else {
     applyMiss(correct, "MISFILL", "MISFILL");
   }

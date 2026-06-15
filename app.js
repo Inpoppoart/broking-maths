@@ -129,15 +129,6 @@ function buildQ(aE, bE, op, ans, mode) {
   };
 }
 
-function buildQ(aE, bE, op, ans) {
-  return {
-    question: `${valueToMixedText(aE)} ${op} ${valueToMixedText(bE)}`,
-    questionHtml: `${valueToFracHtml(aE)} <span class="op">${op}</span> ${valueToFracHtml(bE)}`,
-    answer: ans,
-    explainer: `${valueToMixedText(aE)} ${op} ${valueToMixedText(bE)} = ${valueToMixedText(ans)}`
-  };
-}
-
 function makeEasy() {
   let a, b, op, ans, tries = 0;
   do {

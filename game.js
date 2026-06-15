@@ -228,3 +228,112 @@ const FX = (() => {
 })();
 
 window.FX = FX;
+
+// ─────────────────────────────────────────────────────────────────
+// Living market chart — a price line that reacts to play.
+// pump(+) on fills, pump(-) on misfills. Drifts with noise otherwise.
+// ─────────────────────────────────────────────────────────────────
+const Chart = (() => {
+  let cv, cx, dpr = 1, W = 0, H = 0;
+  let pts = [], price = 200, vel = 0, running = false;
+  let flashFrames = 0, flashUp = true;
+  const N = 160;
+
+  function resize() {
+    if (!cv) return;
+    dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const r = cv.getBoundingClientRect();
+    W = r.width; H = r.height;
+    cv.width = W * dpr; cv.height = H * dpr;
+    cx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+
+  function init() {
+    cv = document.getElementById("chartCanvas");
+    if (!cv) return;
+    cx = cv.getContext("2d");
+    resize();
+    window.addEventListener("resize", resize);
+    for (let i = 0; i < N; i++) pts.push(price);
+    running = true;
+    requestAnimationFrame(loop);
+  }
+
+  function pump(amt) {
+    vel += amt;
+    flashFrames = 14;
+    flashUp = amt >= 0;
+  }
+  function reset() { price = 200; vel = 0; pts = []; for (let i = 0; i < N; i++) pts.push(price); }
+
+  function loop() {
+    if (!running) return;
+    vel += (Math.random() - 0.5) * 0.7;
+    vel *= 0.9;
+    price += vel;
+    if (price < 40) { price = 40; vel = Math.abs(vel) * 0.5; }
+    if (price > 360) { price = 360; vel = -Math.abs(vel) * 0.5; }
+    pts.push(price);
+    if (pts.length > N) pts.shift();
+    draw();
+    requestAnimationFrame(loop);
+  }
+
+  function draw() {
+    cx.clearRect(0, 0, W, H);
+    let min = Infinity, max = -Infinity;
+    for (const p of pts) { if (p < min) min = p; if (p > max) max = p; }
+    const pad = (max - min) * 0.25 + 8;
+    min -= pad; max += pad;
+    const span = max - min || 1;
+    const x = i => (i / (N - 1)) * W;
+    const y = v => H - ((v - min) / span) * H;
+
+    // grid
+    cx.strokeStyle = "rgba(91,209,255,0.07)";
+    cx.lineWidth = 1;
+    for (let g = 1; g < 5; g++) {
+      const gy = (g / 5) * H;
+      cx.beginPath(); cx.moveTo(0, gy); cx.lineTo(W, gy); cx.stroke();
+    }
+
+    const rising = pts[pts.length - 1] >= pts[Math.max(0, pts.length - 24)];
+    let col = rising ? [57, 255, 139] : [255, 77, 94];
+    if (flashFrames > 0) { col = flushColor(col); flashFrames--; }
+    const rgb = `${col[0]},${col[1]},${col[2]}`;
+
+    // area fill
+    cx.beginPath();
+    cx.moveTo(0, y(pts[0]));
+    for (let i = 1; i < pts.length; i++) cx.lineTo(x(i), y(pts[i]));
+    cx.lineTo(W, H); cx.lineTo(0, H); cx.closePath();
+    const grad = cx.createLinearGradient(0, 0, 0, H);
+    grad.addColorStop(0, `rgba(${rgb},0.22)`);
+    grad.addColorStop(1, `rgba(${rgb},0)`);
+    cx.fillStyle = grad; cx.fill();
+
+    // line
+    cx.beginPath();
+    cx.moveTo(0, y(pts[0]));
+    for (let i = 1; i < pts.length; i++) cx.lineTo(x(i), y(pts[i]));
+    cx.lineWidth = 2;
+    cx.strokeStyle = `rgba(${rgb},0.9)`;
+    cx.shadowColor = `rgba(${rgb},0.7)`;
+    cx.shadowBlur = 8;
+    cx.stroke();
+    cx.shadowBlur = 0;
+
+    // head dot
+    const hx = x(pts.length - 1), hy = y(pts[pts.length - 1]);
+    cx.fillStyle = `rgb(${rgb})`;
+    cx.beginPath(); cx.arc(hx, hy, 3, 0, Math.PI * 2); cx.fill();
+  }
+
+  function flushColor(base) {
+    return flashUp ? [255, 255, 255] : [255, 120, 120];
+  }
+
+  return { init, pump, reset };
+})();
+window.Chart = Chart;
+

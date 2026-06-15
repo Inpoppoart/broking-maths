@@ -1,9 +1,10 @@
-const CACHE_NAME = "broking-maths-v3";
+const CACHE_NAME = "pit-boss-v4";
 const ASSETS = [
   "./",
   "./index.html",
   "./styles.css",
   "./app.js",
+  "./game.js",
   "./manifest.webmanifest",
   "./icon-192.png",
   "./icon-512.png"

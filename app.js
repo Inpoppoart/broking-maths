@@ -430,7 +430,6 @@ function checkAnswer() {
     if (hasRelic("xp")) xpGain = Math.round(xpGain * 1.6);
     addXp(xpGain);
 
-    const doubleMsg = hasRelic("double") && game.fillCount % 4 === 0 ? "2×! " : "";
     feedback.className = "feedback good";
     feedback.textContent = `${speedLabel}${doubled ? "2×! " : ""}Filled +${fmtCash(payout)}  (x${mult})`;
     addHistory("✓ " + game.current.question + " = " + valueToMixedText(correct), "fill");

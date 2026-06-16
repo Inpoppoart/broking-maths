@@ -526,6 +526,7 @@ const Monster = (() => {
       cx.fillRect(-1.6 * pxX, -0.5 * pxY, 3.2 * pxX, 1.0 * pxY * (0.6 + browDrop));
       cx.restore();
     }
+    cx.shadowBlur = 0;
 
     // mouth: smug line when calm → gaping fanged maw at rage
     const mouthC = css(dark(body, 0.22));
@@ -560,7 +561,6 @@ const Monster = (() => {
       cx.fillStyle = g;
       cx.fillRect(0, 0, W, H);
     }
-  }
 
   // A pixel bomb hugging the left edge. It swells and heats up as the timer
   // drains; its fuse burns down to the casing right as time runs out.

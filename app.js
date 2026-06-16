@@ -100,9 +100,11 @@ const el = id => document.getElementById(id);
 const qEl      = el("question");
 const feedback = el("feedback");
 const input    = el("answerInput");
+const stageEl  = document.querySelector(".stage");
 
 // ─── Math helpers ─────────────────────────────────────────────────
 function toEighths(x) { return Math.round(Number(x) * 8); }
+function lerp(a, b, t) { return a + (b - a) * Math.max(0, Math.min(1, t)); }
 function randInt(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
 function choice(arr) { return arr[randInt(0, arr.length - 1)]; }
 function valueToDecimalText(e) { return (e / 8).toFixed(3); }
@@ -331,18 +333,42 @@ function startOrderTimer() {
   game.deadline = performance.now() + limit;
   wrap.classList.remove("hidden");
   const bar = el("orderTimerBar");
-  let lastTier = 0;
+  const cd  = el("countdown");
+  cd.classList.remove("hidden");
+  let lastTier = 0, lastBeat = 0;
   const tick = () => {
     if (!game.playing || !game.current) return;
-    const remain = game.deadline - performance.now();
+    const now = performance.now();
+    const remain = game.deadline - now;
     const pct = Math.max(0, remain / limit * 100);
     bar.style.width = pct + "%";
     bar.classList.toggle("danger", pct < 30);
     const u = 1 - pct / 100;
     Monster.setUrgency(u);
     updateQuestionUrgency(u);
+
+    // big visible countdown
+    const secs = Math.max(0, remain / 1000);
+    cd.textContent = secs >= 10 ? Math.ceil(secs) : secs.toFixed(1);
+    cd.className = "countdown" + (u > 0.85 ? " rage" : u > 0.65 ? " danger" : u > 0.4 ? " warn" : "");
+
+    // whole stage reacts
+    stageEl.classList.toggle("danger", u > 0.5 && u <= 0.85);
+    stageEl.classList.toggle("rage",   u > 0.85);
+
+    // heartbeat: first beat per tier, then a quickening pulse in the red zone
     const tier = u > 0.85 ? 3 : u > 0.65 ? 2 : u > 0.4 ? 1 : 0;
-    if (tier > lastTier) { if (tier >= 2) FX.sfx.heartbeat(); lastTier = tier; }
+    if (tier > lastTier && tier >= 2) FX.sfx.heartbeat();
+    lastTier = tier;
+    if (u > 0.65) {
+      const interval = lerp(540, 190, (u - 0.65) / 0.35);
+      if (now - lastBeat > interval) {
+        FX.sfx.heartbeat();
+        lastBeat = now;
+        if (u > 0.9) FX.shake(false); // final-seconds panic jitter
+      }
+    }
+
     if (remain <= 0) { onOrderTimeout(); return; }
     game.timerRAF = requestAnimationFrame(tick);
   };
@@ -352,6 +378,8 @@ function stopOrderTimer() {
   if (game.timerRAF) cancelAnimationFrame(game.timerRAF);
   game.timerRAF = 0;
   el("orderTimer").classList.add("hidden");
+  el("countdown").classList.add("hidden");
+  stageEl.classList.remove("danger", "rage");
   Monster.setUrgency(0);
   updateQuestionUrgency(0);
 }

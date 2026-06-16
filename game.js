@@ -342,22 +342,44 @@ const Chart = (() => {
 window.Chart = Chart;
 
 // ─────────────────────────────────────────────────────────────────
-// Monster — creature eyes that wake and lunge as the timer drains.
-// Rendered on #monsterCanvas, overlaid on the stage behind the UI.
+// Monster — a Dragon-Quest-style pixel SLIME that perches above the
+// question and escalates from a cute blue blob into a furious red
+// fanged beast as the timer drains. It sits in the top band of the
+// stage and never overlaps the numbers, so the math stays readable.
 // ─────────────────────────────────────────────────────────────────
 const Monster = (() => {
-  let cv, cx, W = 0, H = 0, dpr = 1;
+  let cv, cx, qEl, W = 0, H = 0, dpr = 1;
   let urgency = 0, blink = 0, blinkTimer = 0;
   let running = false, active = false;
 
-  const lerp = (a, b, t) => a + (b - a) * Math.max(0, Math.min(1, t));
+  const lerp  = (a, b, t) => a + (b - a) * Math.max(0, Math.min(1, t));
+  const clamp = (t) => Math.max(0, Math.min(1, t));
 
-  function eyeRgb(u) {
-    // cyan (calm) → gold (warn) → blood-red (rage)
-    if (u < 0.5) return [lerp(91, 255, u * 2), lerp(209, 200, u * 2), lerp(255, 40, u * 2)];
-    const t = (u - 0.5) * 2;
-    return [255, lerp(200, 28, t), lerp(40, 28, t)];
+  // 16×12 slime silhouette (classic DQ teardrop dome)
+  const SLIME = [
+    "......####......",
+    "....########....",
+    "...##########...",
+    "..############..",
+    ".##############.",
+    ".##############.",
+    "################",
+    "################",
+    "################",
+    "################",
+    ".##############.",
+    "..############..",
+  ];
+  const SW = 16, SH = SLIME.length;
+  const B = (r, c) => r >= 0 && r < SH && c >= 0 && c < SW && SLIME[r][c] === "#";
+
+  // body colour: DQ blue → purple → angry red
+  function bodyRgb(u) {
+    if (u < 0.5) { const t = u * 2;        return [lerp(64, 150, t), lerp(132, 86, t), lerp(228, 206, t)]; }
+    const t = (u - 0.5) * 2;               return [lerp(150, 232, t), lerp(86, 40, t), lerp(206, 50, t)];
   }
+  const css  = (rgb, a = 1) => `rgba(${rgb[0] | 0},${rgb[1] | 0},${rgb[2] | 0},${a})`;
+  const dark = (rgb, f) => [rgb[0] * f, rgb[1] * f, rgb[2] * f];
 
   function resize() {
     if (!cv) return;
@@ -371,7 +393,9 @@ const Monster = (() => {
   function init() {
     cv = document.getElementById("monsterCanvas");
     if (!cv) return;
+    qEl = document.getElementById("question");
     cx = cv.getContext("2d");
+    cx.imageSmoothingEnabled = false;
     resize();
     window.addEventListener("resize", resize);
     running = true;
@@ -381,119 +405,148 @@ const Monster = (() => {
   function loop(ts) {
     if (!running) return;
     cx.clearRect(0, 0, W, H);
-    if (active) draw(ts);
+    if (active) draw(ts || performance.now());
     requestAnimationFrame(loop);
   }
 
-  function draw(ts) {
-    const breathAmp  = lerp(3.5, 0.6, urgency);
-    const breathRate = lerp(0.0012, 0.007, urgency);
-    const breathY    = Math.sin(ts * breathRate) * breathAmp;
+  function draw(t) {
+    const u = urgency;
+    const body = bodyRgb(u);
 
-    // Eyes lunge downward as urgency rises — monster leaning in toward the question
-    const eyeY    = H * lerp(0.17, 0.38, urgency) + breathY;
-    const eyeSize = lerp(8, 26, urgency);
-    const spread  = lerp(46, 16, urgency); // eyes converge as they lunge
-    const cx0     = W / 2;
+    // hop: gentle at rest, frantic at rage — slime bounces UP so it never
+    // dips toward the question below it.
+    const hopRate = lerp(0.004, 0.015, u);
+    const phase   = Math.sin(t * hopRate);
+    const hop     = Math.abs(phase) * lerp(3, 11, u);
 
-    const [er, eg, eb] = eyeRgb(urgency).map(Math.round);
-    const eCol = `rgb(${er},${eg},${eb})`;
+    // Anchor the slime to the band ABOVE the live question element, so the
+    // numbers always stay clear no matter the floor layout.
+    let bandBottom = H * 0.40;
+    if (qEl) {
+      const qr = qEl.getBoundingClientRect(), cr = cv.getBoundingClientRect();
+      if (cr.height) bandBottom = qr.top - cr.top;
+    }
+    bandBottom = Math.max(46, bandBottom - 4);       // small gap above the number
 
-    // Blink: frequent at rest, almost never at RAGE (unblinking stare)
-    blinkTimer += 0.016;
-    const blinkInterval = lerp(3.0, 20, urgency);
-    if (blinkTimer > blinkInterval + Math.random() * 2) { blink = 1; blinkTimer = 0; }
-    if (blink > 0) blink = Math.max(0, blink - 0.1);
+    // size to fill that band, looming larger with urgency but capped to fit
+    let pxBase = lerp(bandBottom * 0.72, bandBottom * 0.97, u) / SH;
+    pxBase = Math.min(pxBase, W * 0.052);            // never wider than the stage
 
-    // Half-lidded rest at low urgency — eyes "open" as monster wakes
-    const restLid = lerp(0.52, 0, Math.min(1, urgency * 3.5));
+    // squash & stretch (jiggly slime)
+    const jig = phase * 0.09;
+    const pxX = pxBase * (1 - jig);
+    const pxY = pxBase * (1 + jig);
+    const sprW = SW * pxX, sprH = SH * pxY;
 
-    // Fade in from dim to vivid as urgency climbs
-    const alpha = lerp(0.2, 1.0, Math.min(1, urgency * 3.5));
+    const groundY = bandBottom;                      // bottom hovers just above the number
+    let originX = (W - sprW) / 2;
+    const originY = groundY - sprH - hop;            // grows UPWARD as it looms
 
-    const lx = cx0 - spread - eyeSize * 0.5;
-    const rx = cx0 + spread + eyeSize * 0.5;
+    // final-seconds jitter
+    if (u > 0.85) originX += (Math.random() - 0.5) * lerp(0, 7, clamp((u - 0.85) / 0.15));
 
+    const P = (c, r, w, h, color) => {
+      cx.fillStyle = color;
+      cx.fillRect(originX + c * pxX, originY + r * pxY, w * pxX + 0.5, h * pxY + 0.5);
+    };
+
+    // ground shadow (shrinks as the slime hops up)
+    cx.fillStyle = "rgba(0,0,0,0.28)";
+    cx.beginPath();
+    cx.ellipse(W / 2, groundY + pxY * 0.5, sprW * 0.46 * (1 - hop / 60), pxY * 1.1, 0, 0, Math.PI * 2);
+    cx.fill();
+
+    // overall glow ramps up with rage
     cx.save();
-    cx.globalAlpha = alpha;
+    cx.shadowColor = css(body, 1);
+    cx.shadowBlur  = lerp(6, 26, u);
 
-    drawEye(lx, eyeY, eyeSize, eCol, Math.max(blink, restLid), ts, -1);
-    drawEye(rx, eyeY, eyeSize, eCol, Math.max(blink, restLid), ts, +1);
+    const main    = css(body);
+    const outline = css(dark(body, 0.42));
+    const shade   = css(dark(body, 0.72));
 
-    // Angry brows appear at urgency > 0.3
-    if (urgency > 0.3) {
-      const str = Math.min(1, (urgency - 0.3) / 0.5);
-      cx.strokeStyle = eCol;
-      cx.lineWidth   = 1.5 + str * 2.5;
-      cx.lineCap     = "round";
-      cx.shadowColor = eCol;
-      cx.shadowBlur  = 4 + str * 10;
-      const bY = eyeY - eyeSize * 0.95 - str * 5;
-      cx.beginPath(); cx.moveTo(lx - eyeSize * 0.9, bY - str * 6); cx.lineTo(lx + eyeSize * 0.7, bY + str * 4); cx.stroke();
-      cx.beginPath(); cx.moveTo(rx + eyeSize * 0.9, bY - str * 6); cx.lineTo(rx - eyeSize * 0.7, bY + str * 4); cx.stroke();
-      cx.shadowBlur = 0;
-    }
-
-    // Fanged mouth appears at urgency > 0.58
-    if (urgency > 0.58) {
-      const str   = Math.min(1, (urgency - 0.58) / 0.32);
-      const mY    = eyeY + eyeSize * 2.0 + str * 6;
-      const mHalf = (spread + eyeSize) * 0.65 * str;
-      cx.strokeStyle = eCol;
-      cx.lineWidth   = 1.8 + str;
-      cx.lineCap     = "round";
-      cx.lineJoin    = "round";
-      cx.shadowColor = eCol;
-      cx.shadowBlur  = 8 + str * 10;
-      cx.beginPath();
-      cx.moveTo(cx0 - mHalf, mY);
-      for (let i = 0; i <= 6; i++) {
-        const px = cx0 - mHalf + (mHalf * 2 / 6) * i;
-        cx.lineTo(px, mY + (i % 2 === 1 ? str * 9 : 0));
+    // body: fill + pixel outline + lower shading
+    for (let r = 0; r < SH; r++) {
+      for (let c = 0; c < SW; c++) {
+        if (!B(r, c)) continue;
+        const edge = !B(r - 1, c) || !B(r + 1, c) || !B(r, c - 1) || !B(r, c + 1);
+        P(c, r, 1, 1, edge ? outline : (r >= 9 ? shade : main));
       }
-      cx.lineTo(cx0 + mHalf, mY);
-      cx.stroke();
-      cx.shadowBlur = 0;
     }
+    cx.shadowBlur = 0;
 
-    cx.restore();
+    // top-left sheen (DQ highlight)
+    const hi = "rgba(255,255,255,0.5)";
+    P(3.2, 2.4, 1.6, 0.9, hi);
+    P(2.4, 3.3, 1.4, 0.8, hi);
 
-    // RAGE vignette at urgency > 0.78 — independent of base alpha
-    if (urgency > 0.78) {
-      const str   = (urgency - 0.78) / 0.22;
-      const pulse = (Math.sin(ts * 0.009) + 1) / 2;
+    // ── face ────────────────────────────────────────────────────
+    const browDrop  = clamp((u - 0.3) / 0.5);   // 0 calm → 1 furious
+    const mouthOpen = clamp((u - 0.42) / 0.4);
+    const fangs     = u > 0.6;
+
+    blinkTimer += 0.016;
+    if (blinkTimer > lerp(3.2, 14, u) + Math.random() * 1.5) { blink = 1; blinkTimer = 0; }
+    if (blink > 0) blink = Math.max(0, blink - 0.14);
+    const eyeH = lerp(3.0, 1.5, browDrop) * (blink > 0 ? 0.25 : 1);
+
+    const white = "#f4f8ff", pupil = "#0a1020";
+    // eyes (left cols ~4-5, right cols ~10-11), vertically centred ~row 5
+    const eyeTop = 5.4 - eyeH / 2;
+    P(4.0, eyeTop, 2.0, eyeH, white);
+    P(10.0, eyeTop, 2.0, eyeH, white);
+    // pupils glare inward + downward as it gets angry
+    const pupY = eyeTop + eyeH * 0.45 + browDrop * 0.5;
+    P(4.7 + browDrop * 0.4, pupY, 1.0, Math.max(0.8, eyeH * 0.55), pupil);
+    P(10.3 - browDrop * 0.4, pupY, 1.0, Math.max(0.8, eyeH * 0.55), pupil);
+
+    // angry slanted brows
+    if (browDrop > 0.05) {
+      const bcol = css(dark(body, 0.3));
+      cx.fillStyle = bcol;
       cx.save();
-      cx.globalAlpha = str * pulse * 0.08;
-      cx.fillStyle = "#ff1530";
-      cx.fillRect(0, 0, W, H);
+      // left brow ↘
+      cx.translate(originX + 4.6 * pxX, originY + (eyeTop - 0.7) * pxY);
+      cx.rotate(0.5 * browDrop);
+      cx.fillRect(-1.6 * pxX, -0.5 * pxY, 3.2 * pxX, 1.0 * pxY * (0.6 + browDrop));
+      cx.restore();
+      cx.save();
+      // right brow ↙
+      cx.translate(originX + 11.4 * pxX, originY + (eyeTop - 0.7) * pxY);
+      cx.rotate(-0.5 * browDrop);
+      cx.fillRect(-1.6 * pxX, -0.5 * pxY, 3.2 * pxX, 1.0 * pxY * (0.6 + browDrop));
       cx.restore();
     }
-  }
 
-  function drawEye(x, y, size, eCol, blinkVal, ts, side) {
-    const openH = 1 - blinkVal * 0.94;
-    const pupX  = x + side * urgency * 4 * Math.sin(ts * 0.0018);
+    // mouth: smug line when calm → gaping fanged maw at rage
+    const mouthC = css(dark(body, 0.22));
+    if (mouthOpen < 0.15) {
+      P(6.3, 8.6, 3.4, 0.7, mouthC);            // calm smile line
+    } else {
+      const mh = lerp(0.8, 2.6, mouthOpen);
+      const mw = lerp(3.0, 4.4, mouthOpen);
+      const mx = 8 - mw / 2;
+      P(mx, 8.2, mw, mh, "#1b0307");            // dark maw
+      if (fangs) {                               // white fangs top & bottom
+        P(mx + 0.4, 8.2, 0.8, mh * 0.5, white);
+        P(mx + mw - 1.2, 8.2, 0.8, mh * 0.5, white);
+        P(mx + mw * 0.5 - 0.4, 8.2 + mh * 0.5, 0.8, mh * 0.45, white);
+      }
+    }
+    cx.restore();
 
-    cx.shadowColor = eCol;
-    cx.shadowBlur  = 8 + urgency * 18;
-
-    // Sclera
-    cx.fillStyle = urgency > 0.55 ? "rgba(28,3,5,0.95)" : "rgba(6,9,20,0.92)";
-    cx.beginPath(); cx.ellipse(x, y, size, size * openH, 0, 0, Math.PI * 2); cx.fill();
-
-    // Iris
-    cx.fillStyle = eCol;
-    cx.beginPath(); cx.ellipse(pupX, y, size * 0.57, size * 0.57 * openH, 0, 0, Math.PI * 2); cx.fill();
-
-    // Pupil: vertical slit at calm, wider at rage
-    const pupW = lerp(0.17, 0.34, urgency);
-    cx.fillStyle = "#000";
-    cx.beginPath(); cx.ellipse(pupX, y, size * pupW, size * 0.27 * openH, 0, 0, Math.PI * 2); cx.fill();
-
-    // Highlight glint
-    cx.shadowBlur = 0;
-    cx.fillStyle = `rgba(255,255,255,${0.55 - urgency * 0.25})`;
-    cx.beginPath(); cx.arc(x - size * 0.18, y - size * 0.18, size * 0.1 * openH + 0.5, 0, Math.PI * 2); cx.fill();
+    // ── rage vignette: closes in from the EDGES only, centre stays clear
+    // so it never darkens the numbers ──
+    if (u > 0.62) {
+      const s = (u - 0.62) / 0.38;
+      const pulse = (Math.sin(t * 0.012) + 1) / 2;
+      const g = cx.createRadialGradient(W / 2, H / 2, H * 0.12, W / 2, H / 2, Math.max(W, H) * 0.72);
+      g.addColorStop(0, "rgba(255,20,40,0)");
+      g.addColorStop(0.6, "rgba(255,20,40,0)");
+      g.addColorStop(1, `rgba(255,20,40,${s * (0.16 + pulse * 0.14)})`);
+      cx.fillStyle = g;
+      cx.fillRect(0, 0, W, H);
+    }
   }
 
   function setUrgency(u) { urgency = Math.max(0, Math.min(1, u)); }

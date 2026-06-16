@@ -78,6 +78,12 @@ const FX = (() => {
     heartbeat() {
       tone(80, 0, 0.1, "sine", 0.055);
       tone(60, 0.18, 0.08, "sine", 0.042);
+    },
+    fuse() { tone(2200 + Math.random() * 600, 0, 0.03, "square", 0.012); },
+    explode() {
+      sweep(200, 38, 0, 0.55, "sawtooth", 0.13);
+      tone(60, 0, 0.5, "triangle", 0.11);
+      tone(96, 0.02, 0.3, "square", 0.05);
     }
   };
 
@@ -351,6 +357,9 @@ const Monster = (() => {
   let cv, cx, qEl, W = 0, H = 0, dpr = 1;
   let urgency = 0, blink = 0, blinkTimer = 0;
   let running = false, active = false;
+  // bomb (left side) + explosion one-shot
+  let bombX = 0, bombY = 0, bombR = 0;
+  let boom = 0, exX = 0, exY = 0, exR = 0;
 
   const lerp  = (a, b, t) => a + (b - a) * Math.max(0, Math.min(1, t));
   const clamp = (t) => Math.max(0, Math.min(1, t));
@@ -421,10 +430,10 @@ const Monster = (() => {
 
     // Anchor the slime to the band ABOVE the live question element, so the
     // numbers always stay clear no matter the floor layout.
-    let bandBottom = H * 0.40;
+    let bandBottom = H * 0.40, qCenterY = H * 0.5;
     if (qEl) {
       const qr = qEl.getBoundingClientRect(), cr = cv.getBoundingClientRect();
-      if (cr.height) bandBottom = qr.top - cr.top;
+      if (cr.height) { bandBottom = qr.top - cr.top; qCenterY = (qr.top - cr.top) + qr.height / 2; }
     }
     bandBottom = Math.max(46, bandBottom - 4);       // small gap above the number
 
@@ -517,6 +526,7 @@ const Monster = (() => {
       cx.fillRect(-1.6 * pxX, -0.5 * pxY, 3.2 * pxX, 1.0 * pxY * (0.6 + browDrop));
       cx.restore();
     }
+    cx.shadowBlur = 0;
 
     // mouth: smug line when calm → gaping fanged maw at rage
     const mouthC = css(dark(body, 0.22));
@@ -535,6 +545,10 @@ const Monster = (() => {
     }
     cx.restore();
 
+    // ── bomb on the left, fuse burning toward the deadline ──
+    if (boom) drawExplosion(t);
+    else      drawBomb(t, u, qCenterY);
+
     // ── rage vignette: closes in from the EDGES only, centre stays clear
     // so it never darkens the numbers ──
     if (u > 0.62) {
@@ -549,11 +563,111 @@ const Monster = (() => {
     }
   }
 
+  // A pixel bomb hugging the left edge. It swells and heats up as the timer
+  // drains; its fuse burns down to the casing right as time runs out.
+  function drawBomb(t, u, qCenterY) {
+    const r  = lerp(W * 0.052, W * 0.135, u);   // grows with urgency
+    const cxp = lerp(W * 0.13, W * 0.17, u);    // hugs the left side, clear of the number
+    const shk = u > 0.6 ? (Math.random() - 0.5) * lerp(0, 6, clamp((u - 0.6) / 0.4)) : 0;
+    const bx = cxp + shk, by = qCenterY + shk * 0.6;
+    bombX = bx; bombY = by; bombR = r;
+
+    const heat = clamp((u - 0.45) / 0.55);      // 0 → glowing red-hot
+
+    cx.save();
+    cx.shadowColor = `rgba(255,${(120 - heat * 90) | 0},40,${0.4 + heat * 0.55})`;
+    cx.shadowBlur  = lerp(6, 26, u);
+
+    // body
+    const bg = cx.createRadialGradient(bx - r * 0.32, by - r * 0.32, r * 0.15, bx, by, r);
+    bg.addColorStop(0, heat > 0 ? `rgb(${(70 + heat * 175) | 0},${(38 + heat * 30) | 0},42)` : "#2b303c");
+    bg.addColorStop(1, "#05070c");
+    cx.fillStyle = bg;
+    cx.beginPath(); cx.arc(bx, by, r, 0, Math.PI * 2); cx.fill();
+    cx.shadowBlur = 0;
+
+    // hot cracks
+    if (heat > 0.3) {
+      cx.strokeStyle = `rgba(255,${(170 - heat * 130) | 0},40,${heat})`;
+      cx.lineWidth = 1.4 + heat * 1.6;
+      cx.lineCap = "round";
+      cx.beginPath();
+      cx.moveTo(bx - r * 0.42, by - r * 0.12);
+      cx.lineTo(bx - r * 0.05, by + r * 0.22);
+      cx.lineTo(bx + r * 0.34, by - r * 0.04);
+      cx.stroke();
+    }
+
+    // glint
+    cx.fillStyle = "rgba(255,255,255,0.5)";
+    cx.beginPath(); cx.arc(bx - r * 0.36, by - r * 0.4, r * 0.16, 0, Math.PI * 2); cx.fill();
+
+    // fuse cap + burning fuse (shrinks toward the casing as u → 1)
+    cx.fillStyle = "#3a2a14";
+    cx.fillRect(bx - r * 0.22, by - r * 1.14, r * 0.44, r * 0.3);
+    const capX = bx + r * 0.04, capY = by - r * 1.12;
+    const fuseLen = r * 1.0 * (1 - u);
+    const sparkX = capX + Math.sin(t * 0.02) * r * 0.14;
+    const sparkY = capY - fuseLen;
+    cx.strokeStyle = "#6b5a3a"; cx.lineWidth = Math.max(2, r * 0.12); cx.lineCap = "round";
+    cx.beginPath();
+    cx.moveTo(capX, capY);
+    cx.quadraticCurveTo(capX + r * 0.3, (capY + sparkY) / 2, sparkX, sparkY);
+    cx.stroke();
+
+    // spark
+    const sp = lerp(2, 6, u) + Math.random() * 3;
+    cx.shadowColor = "#ffb020"; cx.shadowBlur = 14;
+    cx.fillStyle = "#fff";
+    cx.beginPath(); cx.arc(sparkX, sparkY, sp, 0, Math.PI * 2); cx.fill();
+    cx.fillStyle = "#ffd23f";
+    for (let i = 0; i < 4; i++) {
+      const a = Math.random() * Math.PI * 2, d = sp + Math.random() * sp * 1.6;
+      cx.fillRect(sparkX + Math.cos(a) * d, sparkY + Math.sin(a) * d, 1.6, 1.6);
+    }
+    cx.shadowBlur = 0;
+    cx.restore();
+  }
+
+  function drawExplosion(t) {
+    const e = (t - boom) / 560;
+    if (e >= 1) { boom = 0; return; }
+    const R = exR * (1 + e * 4.5);
+    const a = 1 - e;
+    const g = cx.createRadialGradient(exX, exY, 0, exX, exY, R);
+    g.addColorStop(0,   `rgba(255,255,230,${a})`);
+    g.addColorStop(0.4, `rgba(255,150,40,${a * 0.9})`);
+    g.addColorStop(0.8, `rgba(255,50,40,${a * 0.5})`);
+    g.addColorStop(1,   "rgba(120,20,20,0)");
+    cx.fillStyle = g;
+    cx.beginPath(); cx.arc(exX, exY, R, 0, Math.PI * 2); cx.fill();
+    cx.strokeStyle = `rgba(255,220,160,${a})`;
+    cx.lineWidth = lerp(7, 1, e);
+    cx.beginPath(); cx.arc(exX, exY, R * 0.92, 0, Math.PI * 2); cx.stroke();
+  }
+
+  // Detonate at the bomb's current position — visuals + sound + debris.
+  function explode() {
+    if (boom) return;
+    exX = bombX; exY = bombY; exR = bombR || W * 0.12;
+    boom = performance.now();
+    if (typeof FX !== "undefined") {
+      FX.sfx.explode();
+      FX.flash("rgba(255,120,30,0.45)");
+      FX.shake(true);
+      const r = cv.getBoundingClientRect();
+      FX.burst(r.left + exX, r.top + exY, {
+        count: 46, power: 8, up: 3, size: 8, shape: "square",
+        colors: ["#ff5a2a", "#ffd23f", "#ff2d4a", "#3a3a3a", "#fff"]
+      });
+    }
+  }
+
   function setUrgency(u) { urgency = Math.max(0, Math.min(1, u)); }
   function setActive(a)  { active = a; if (!a) urgency = 0; }
-  function reset()       { urgency = 0; active = false; blink = 0; blinkTimer = 0; }
+  function reset()       { urgency = 0; active = false; blink = 0; blinkTimer = 0; boom = 0; }
 
-  return { init, setUrgency, setActive, reset };
+  return { init, setUrgency, setActive, reset, explode };
 })();
 window.Monster = Monster;
 

@@ -364,6 +364,7 @@ function startOrderTimer() {
       const interval = lerp(540, 190, (u - 0.65) / 0.35);
       if (now - lastBeat > interval) {
         FX.sfx.heartbeat();
+        FX.sfx.fuse();                // crackling fuse
         lastBeat = now;
         if (u > 0.9) FX.shake(false); // final-seconds panic jitter
       }
@@ -384,10 +385,11 @@ function stopOrderTimer() {
   updateQuestionUrgency(0);
 }
 function onOrderTimeout() {
-  stopOrderTimer();
   if (!game.current || game.answering) return;
   game.answering = true;
-  applyMiss(game.current.answer, "TIMED OUT", "TIME!");
+  Monster.explode();
+  stopOrderTimer();
+  applyMiss(game.current.answer, "💥 BOOM — TIMED OUT", "BOOM!");
 }
 
 // ─── Core loop ────────────────────────────────────────────────────

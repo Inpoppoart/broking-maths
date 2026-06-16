@@ -71,9 +71,9 @@ const BASE_PAYOUT = { easy: 120, medium: 200, hard: 320 };
 const MODE_XP     = { easy: 0,   medium: 6,   hard: 12  };
 
 const hints = {
-  easy:   "2-digit with eighths ± 1-digit with eighths.",
-  medium: "2-digit with eighths ± smaller 2-digit with eighths.",
-  hard:   "Level price ± spread from the pool. Up to 350.",
+  easy:   "2-digit price ± 2-digit with eighths. Both sides have fractions.",
+  medium: "Level price ± spread from the pool.",
+  hard:   "Forced carry or borrow in eighths (繰り上がり).",
   mixed:  "Escalates each floor — starts easy, goes hard."
 };
 
@@ -155,20 +155,33 @@ function buildQ(aE, bE, op, ans, mode) {
 }
 function makeEasy() {
   let a,b,op,ans,t=0;
-  do { a=randInt(70*8,99*8+7); b=randInt(8,79); op=Math.random()<0.55?"+":"-"; ans=op==="+"?a+b:a-b; t++; }
-  while(!validRange(ans)&&t<50);
+  do { a=randInt(70*8,99*8+7); b=randInt(10*8,49*8+7); op=Math.random()<0.30?"+":"-"; ans=op==="+"?a+b:a-b; t++; }
+  while(!validRange(ans)&&t<80);
   return buildQ(a,b,op,ans,"easy");
 }
 function makeMedium() {
   let a,b,op,ans,t=0;
-  do { a=randInt(70*8,99*8+7); b=randInt(10*8,49*8+7); op=Math.random()<0.55?"+":"-"; ans=op==="+"?a+b:a-b; t++; }
+  do { a=toEighths(choice(activeLevels)); b=toEighths(choice(activeSpreads)); op=Math.random()<0.30?"+":"-"; ans=op==="+"?a+b:a-b; t++; }
   while(!validRange(ans)&&t<80);
   return buildQ(a,b,op,ans,"medium");
 }
 function makeHard() {
+  // Forced carry (add) or borrow (sub) in the eighths column — 繰り上がり
   let a,b,op,ans,t=0;
-  do { a=toEighths(choice(activeLevels)); b=toEighths(choice(activeSpreads)); op=Math.random()<0.55?"+":"-"; ans=op==="+"?a+b:a-b; t++; }
-  while(!validRange(ans)&&t<80);
+  do {
+    a  = toEighths(choice(activeLevels));
+    b  = toEighths(choice(activeSpreads));
+    op = Math.random() < 0.30 ? "+" : "-";
+    let inner = 0;
+    while (inner < 20) {
+      const ok = op === "-" ? (a % 8) < (b % 8) : (a % 8) + (b % 8) >= 8;
+      if (ok) break;
+      b = toEighths(choice(activeSpreads));
+      inner++;
+    }
+    ans = op === "+" ? a+b : a-b;
+    t++;
+  } while (!validRange(ans) && t < 80);
   return buildQ(a,b,op,ans,"hard");
 }
 function makeQuestion() {

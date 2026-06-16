@@ -1,4 +1,4 @@
-const CACHE_NAME = "pit-boss-v7";
+const CACHE_NAME = "pit-boss-v8";
 const ASSETS = [
   "./",
   "./index.html",

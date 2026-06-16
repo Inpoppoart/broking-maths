@@ -1,4 +1,4 @@
-const CACHE_NAME = "pit-boss-v6";
+const CACHE_NAME = "pit-boss-v7";
 const ASSETS = [
   "./",
   "./index.html",
@@ -24,6 +24,17 @@ self.addEventListener("activate", event => {
   self.clients.claim();
 });
 
+// Network-first: always try the live asset, fall back to cache offline.
+// Keeps the cache fresh so the game never gets stuck on an old version.
 self.addEventListener("fetch", event => {
-  event.respondWith(caches.match(event.request).then(cached => cached || fetch(event.request)));
+  if (event.request.method !== "GET") return;
+  event.respondWith(
+    fetch(event.request)
+      .then(resp => {
+        const copy = resp.clone();
+        caches.open(CACHE_NAME).then(cache => cache.put(event.request, copy)).catch(() => {});
+        return resp;
+      })
+      .catch(() => caches.match(event.request))
+  );
 });

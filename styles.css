@@ -191,10 +191,23 @@ body {
 
 /* ── floor meta / order timer ── */
 .floor-meta { font-family: var(--pixel); font-size: 0.46rem; letter-spacing: 0.08em; color: var(--cyan); text-align: center; margin-bottom: 0.5rem; opacity: 0.9; }
-.order-timer { height: 6px; background: var(--bg2); border-radius: 4px; overflow: hidden; margin-bottom: 0.5rem; border: 1px solid var(--border); }
+.order-timer { height: 8px; background: var(--bg2); border-radius: 4px; overflow: hidden; margin-bottom: 0.5rem; border: 1px solid var(--border); }
 .order-timer-bar { height: 100%; width: 100%; background: linear-gradient(90deg, var(--green), var(--cyan)); transition: background 0.2s; }
 .order-timer-bar.danger { background: linear-gradient(90deg, var(--red), #ff8a3d); animation: timerPulse 0.5s infinite; }
 @keyframes timerPulse { 0%,100%{opacity:1} 50%{opacity:0.6} }
+
+/* ── big visible countdown ── */
+.countdown {
+  position: absolute; top: 0.2rem; right: 0.35rem; z-index: 5;
+  font-family: var(--mono); font-weight: 800; font-size: 1.6rem; line-height: 1;
+  color: var(--cyan); font-variant-numeric: tabular-nums;
+  text-shadow: 0 0 12px rgba(91,209,255,0.6); pointer-events: none;
+  transition: color 0.2s;
+}
+.countdown.warn   { color: var(--gold); text-shadow: 0 0 14px rgba(255,210,63,0.8); }
+.countdown.danger { color: #ff8040; text-shadow: 0 0 18px rgba(255,120,40,0.95); animation: cdPulse 0.5s infinite; }
+.countdown.rage   { color: var(--red); font-size: 2.1rem; text-shadow: 0 0 26px rgba(255,40,50,1); animation: cdPulse 0.24s infinite; }
+@keyframes cdPulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.22)} }
 
 /* ── game-over best ── */
 .go-best { font-family: var(--mono); font-size: 0.68rem; color: var(--gold); margin: -0.4rem 0 1rem; }
@@ -263,6 +276,19 @@ body {
   border-radius: 14px;
   padding: 0.9rem;
   box-shadow: 0 0 0 1px rgba(0,0,0,0.4), 0 16px 40px rgba(0,0,0,0.5), inset 0 0 30px rgba(91,209,255,0.04);
+  transition: border-color 0.25s, box-shadow 0.25s;
+}
+.stage.danger {
+  border-color: #ff8040;
+  box-shadow: 0 0 0 1px rgba(0,0,0,0.4), 0 0 30px rgba(255,120,40,0.45), inset 0 0 44px rgba(255,90,40,0.12);
+}
+.stage.rage {
+  border-color: var(--red);
+  animation: stageRage 0.45s infinite;
+}
+@keyframes stageRage {
+  0%,100% { box-shadow: 0 0 0 1px rgba(0,0,0,0.4), 0 0 36px rgba(255,40,50,0.65), inset 0 0 56px rgba(255,30,40,0.20); }
+  50%     { box-shadow: 0 0 0 1px rgba(0,0,0,0.4), 0 0 60px rgba(255,40,50,0.95), inset 0 0 84px rgba(255,30,40,0.34); }
 }
 .order-tag {
   font-family: var(--pixel); font-size: 0.46rem; letter-spacing: 0.1em;

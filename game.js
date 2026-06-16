@@ -348,14 +348,13 @@ const Chart = (() => {
 window.Chart = Chart;
 
 // ─────────────────────────────────────────────────────────────────
-// Monster — a Dragon-Quest-style pixel SLIME that perches above the
-// question and escalates from a cute blue blob into a furious red
-// fanged beast as the timer drains. It sits in the top band of the
-// stage and never overlaps the numbers, so the math stays readable.
+// Monster — a pixel BOMB hugging the left side of the stage. Its fuse
+// burns down as the timer drains and it detonates when time runs out,
+// costing a life. Kept clear of the numbers so the math stays readable.
 // ─────────────────────────────────────────────────────────────────
 const Monster = (() => {
   let cv, cx, qEl, W = 0, H = 0, dpr = 1;
-  let urgency = 0, blink = 0, blinkTimer = 0;
+  let urgency = 0;
   let running = false, active = false;
   // bomb (left side) + explosion one-shot
   let bombX = 0, bombY = 0, bombR = 0;
@@ -363,32 +362,6 @@ const Monster = (() => {
 
   const lerp  = (a, b, t) => a + (b - a) * Math.max(0, Math.min(1, t));
   const clamp = (t) => Math.max(0, Math.min(1, t));
-
-  // 16×12 slime silhouette (classic DQ teardrop dome)
-  const SLIME = [
-    "......####......",
-    "....########....",
-    "...##########...",
-    "..############..",
-    ".##############.",
-    ".##############.",
-    "################",
-    "################",
-    "################",
-    "################",
-    ".##############.",
-    "..############..",
-  ];
-  const SW = 16, SH = SLIME.length;
-  const B = (r, c) => r >= 0 && r < SH && c >= 0 && c < SW && SLIME[r][c] === "#";
-
-  // body colour: DQ blue → purple → angry red
-  function bodyRgb(u) {
-    if (u < 0.5) { const t = u * 2;        return [lerp(64, 150, t), lerp(132, 86, t), lerp(228, 206, t)]; }
-    const t = (u - 0.5) * 2;               return [lerp(150, 232, t), lerp(86, 40, t), lerp(206, 50, t)];
-  }
-  const css  = (rgb, a = 1) => `rgba(${rgb[0] | 0},${rgb[1] | 0},${rgb[2] | 0},${a})`;
-  const dark = (rgb, f) => [rgb[0] * f, rgb[1] * f, rgb[2] * f];
 
   function resize() {
     if (!cv) return;
@@ -420,130 +393,13 @@ const Monster = (() => {
 
   function draw(t) {
     const u = urgency;
-    const body = bodyRgb(u);
 
-    // hop: gentle at rest, frantic at rage — slime bounces UP so it never
-    // dips toward the question below it.
-    const hopRate = lerp(0.004, 0.015, u);
-    const phase   = Math.sin(t * hopRate);
-    const hop     = Math.abs(phase) * lerp(3, 11, u);
-
-    // Anchor the slime to the band ABOVE the live question element, so the
-    // numbers always stay clear no matter the floor layout.
-    let bandBottom = H * 0.40, qCenterY = H * 0.5;
+    // Find the question's vertical center so the bomb lines up with it.
+    let qCenterY = H * 0.5;
     if (qEl) {
       const qr = qEl.getBoundingClientRect(), cr = cv.getBoundingClientRect();
-      if (cr.height) { bandBottom = qr.top - cr.top; qCenterY = (qr.top - cr.top) + qr.height / 2; }
+      if (cr.height) qCenterY = (qr.top - cr.top) + qr.height / 2;
     }
-    bandBottom = Math.max(46, bandBottom - 4);       // small gap above the number
-
-    // size to fill that band, looming larger with urgency but capped to fit
-    let pxBase = lerp(bandBottom * 0.72, bandBottom * 0.97, u) / SH;
-    pxBase = Math.min(pxBase, W * 0.052);            // never wider than the stage
-
-    // squash & stretch (jiggly slime)
-    const jig = phase * 0.09;
-    const pxX = pxBase * (1 - jig);
-    const pxY = pxBase * (1 + jig);
-    const sprW = SW * pxX, sprH = SH * pxY;
-
-    const groundY = bandBottom;                      // bottom hovers just above the number
-    let originX = (W - sprW) / 2;
-    const originY = groundY - sprH - hop;            // grows UPWARD as it looms
-
-    // final-seconds jitter
-    if (u > 0.85) originX += (Math.random() - 0.5) * lerp(0, 7, clamp((u - 0.85) / 0.15));
-
-    const P = (c, r, w, h, color) => {
-      cx.fillStyle = color;
-      cx.fillRect(originX + c * pxX, originY + r * pxY, w * pxX + 0.5, h * pxY + 0.5);
-    };
-
-    // ground shadow (shrinks as the slime hops up)
-    cx.fillStyle = "rgba(0,0,0,0.28)";
-    cx.beginPath();
-    cx.ellipse(W / 2, groundY + pxY * 0.5, sprW * 0.46 * (1 - hop / 60), pxY * 1.1, 0, 0, Math.PI * 2);
-    cx.fill();
-
-    // overall glow ramps up with rage
-    cx.save();
-    cx.shadowColor = css(body, 1);
-    cx.shadowBlur  = lerp(6, 26, u);
-
-    const main    = css(body);
-    const outline = css(dark(body, 0.42));
-    const shade   = css(dark(body, 0.72));
-
-    // body: fill + pixel outline + lower shading
-    for (let r = 0; r < SH; r++) {
-      for (let c = 0; c < SW; c++) {
-        if (!B(r, c)) continue;
-        const edge = !B(r - 1, c) || !B(r + 1, c) || !B(r, c - 1) || !B(r, c + 1);
-        P(c, r, 1, 1, edge ? outline : (r >= 9 ? shade : main));
-      }
-    }
-    cx.shadowBlur = 0;
-
-    // top-left sheen (DQ highlight)
-    const hi = "rgba(255,255,255,0.5)";
-    P(3.2, 2.4, 1.6, 0.9, hi);
-    P(2.4, 3.3, 1.4, 0.8, hi);
-
-    // ── face ────────────────────────────────────────────────────
-    const browDrop  = clamp((u - 0.3) / 0.5);   // 0 calm → 1 furious
-    const mouthOpen = clamp((u - 0.42) / 0.4);
-    const fangs     = u > 0.6;
-
-    blinkTimer += 0.016;
-    if (blinkTimer > lerp(3.2, 14, u) + Math.random() * 1.5) { blink = 1; blinkTimer = 0; }
-    if (blink > 0) blink = Math.max(0, blink - 0.14);
-    const eyeH = lerp(3.0, 1.5, browDrop) * (blink > 0 ? 0.25 : 1);
-
-    const white = "#f4f8ff", pupil = "#0a1020";
-    // eyes (left cols ~4-5, right cols ~10-11), vertically centred ~row 5
-    const eyeTop = 5.4 - eyeH / 2;
-    P(4.0, eyeTop, 2.0, eyeH, white);
-    P(10.0, eyeTop, 2.0, eyeH, white);
-    // pupils glare inward + downward as it gets angry
-    const pupY = eyeTop + eyeH * 0.45 + browDrop * 0.5;
-    P(4.7 + browDrop * 0.4, pupY, 1.0, Math.max(0.8, eyeH * 0.55), pupil);
-    P(10.3 - browDrop * 0.4, pupY, 1.0, Math.max(0.8, eyeH * 0.55), pupil);
-
-    // angry slanted brows
-    if (browDrop > 0.05) {
-      const bcol = css(dark(body, 0.3));
-      cx.fillStyle = bcol;
-      cx.save();
-      // left brow ↘
-      cx.translate(originX + 4.6 * pxX, originY + (eyeTop - 0.7) * pxY);
-      cx.rotate(0.5 * browDrop);
-      cx.fillRect(-1.6 * pxX, -0.5 * pxY, 3.2 * pxX, 1.0 * pxY * (0.6 + browDrop));
-      cx.restore();
-      cx.save();
-      // right brow ↙
-      cx.translate(originX + 11.4 * pxX, originY + (eyeTop - 0.7) * pxY);
-      cx.rotate(-0.5 * browDrop);
-      cx.fillRect(-1.6 * pxX, -0.5 * pxY, 3.2 * pxX, 1.0 * pxY * (0.6 + browDrop));
-      cx.restore();
-    }
-    cx.shadowBlur = 0;
-
-    // mouth: smug line when calm → gaping fanged maw at rage
-    const mouthC = css(dark(body, 0.22));
-    if (mouthOpen < 0.15) {
-      P(6.3, 8.6, 3.4, 0.7, mouthC);            // calm smile line
-    } else {
-      const mh = lerp(0.8, 2.6, mouthOpen);
-      const mw = lerp(3.0, 4.4, mouthOpen);
-      const mx = 8 - mw / 2;
-      P(mx, 8.2, mw, mh, "#1b0307");            // dark maw
-      if (fangs) {                               // white fangs top & bottom
-        P(mx + 0.4, 8.2, 0.8, mh * 0.5, white);
-        P(mx + mw - 1.2, 8.2, 0.8, mh * 0.5, white);
-        P(mx + mw * 0.5 - 0.4, 8.2 + mh * 0.5, 0.8, mh * 0.45, white);
-      }
-    }
-    cx.restore();
 
     // ── bomb on the left, fuse burning toward the deadline ──
     if (boom) drawExplosion(t);
@@ -665,7 +521,7 @@ const Monster = (() => {
 
   function setUrgency(u) { urgency = Math.max(0, Math.min(1, u)); }
   function setActive(a)  { active = a; if (!a) urgency = 0; }
-  function reset()       { urgency = 0; active = false; blink = 0; blinkTimer = 0; boom = 0; }
+  function reset()       { urgency = 0; active = false; boom = 0; }
 
   return { init, setUrgency, setActive, reset, explode };
 })();

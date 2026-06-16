@@ -41,11 +41,11 @@ const ALL_RELICS = [
 
 // ─── Market conditions (non-boss floors) ───────────────────────────
 const CONDITIONS = [
-  { id: "calm",   name: "CALM TAPE",   icon: "🌤", desc: "Steady market. No modifier.",            limit: 0,    cash: 1.0 },
-  { id: "bull",   name: "BULL RUN",    icon: "🐂", desc: "+50% cash this floor.",                  limit: 0,    cash: 1.5 },
-  { id: "volat",  name: "VOLATILE",    icon: "🌊", desc: "Orders are timed — 9 s each.",           limit: 9000, cash: 1.2 },
-  { id: "bear",   name: "BEAR RAID",   icon: "🐻", desc: "Fast & tense — 6 s each, +30% cash.",    limit: 6000, cash: 1.3 },
-  { id: "gold",   name: "GOLDEN HOUR", icon: "✨", desc: "Draft offers 4 relics after this floor.", limit: 0,    cash: 1.0 },
+  { id: "calm",   name: "CALM TAPE",   icon: "🌤", desc: "Steady market — 20 s per order.",              limit: 20000, cash: 1.0 },
+  { id: "bull",   name: "BULL RUN",    icon: "🐂", desc: "+50% cash this floor — 15 s per order.",        limit: 15000, cash: 1.5 },
+  { id: "volat",  name: "VOLATILE",    icon: "🌊", desc: "Orders are timed — 9 s each.",                  limit: 9000,  cash: 1.2 },
+  { id: "bear",   name: "BEAR RAID",   icon: "🐻", desc: "Fast & tense — 6 s each, +30% cash.",           limit: 6000,  cash: 1.3 },
+  { id: "gold",   name: "GOLDEN HOUR", icon: "✨", desc: "4 relics to draft — 18 s per order.",            limit: 18000, cash: 1.0 },
 ];
 
 // ─── Bosses (every 5th floor) ──────────────────────────────────────
@@ -315,20 +315,34 @@ function defeatBoss() {
 }
 
 // ─── Order timer (timed conditions / bosses) ──────────────────────
+function updateQuestionUrgency(u) {
+  qEl.classList.remove("urg-warn", "urg-danger", "urg-rage");
+  if      (u > 0.85) qEl.classList.add("urg-rage");
+  else if (u > 0.65) qEl.classList.add("urg-danger");
+  else if (u > 0.4)  qEl.classList.add("urg-warn");
+}
+
 function startOrderTimer() {
   stopOrderTimer();
+  Monster.setActive(true);
   const wrap = el("orderTimer");
   if (!game.timeLimit) { wrap.classList.add("hidden"); return; }
   let limit = game.timeLimit + (hasRelic("clock") ? 3000 : 0);
   game.deadline = performance.now() + limit;
   wrap.classList.remove("hidden");
   const bar = el("orderTimerBar");
+  let lastTier = 0;
   const tick = () => {
     if (!game.playing || !game.current) return;
     const remain = game.deadline - performance.now();
     const pct = Math.max(0, remain / limit * 100);
     bar.style.width = pct + "%";
     bar.classList.toggle("danger", pct < 30);
+    const u = 1 - pct / 100;
+    Monster.setUrgency(u);
+    updateQuestionUrgency(u);
+    const tier = u > 0.85 ? 3 : u > 0.65 ? 2 : u > 0.4 ? 1 : 0;
+    if (tier > lastTier) { if (tier >= 2) FX.sfx.heartbeat(); lastTier = tier; }
     if (remain <= 0) { onOrderTimeout(); return; }
     game.timerRAF = requestAnimationFrame(tick);
   };
@@ -338,6 +352,8 @@ function stopOrderTimer() {
   if (game.timerRAF) cancelAnimationFrame(game.timerRAF);
   game.timerRAF = 0;
   el("orderTimer").classList.add("hidden");
+  Monster.setUrgency(0);
+  updateQuestionUrgency(0);
 }
 function onOrderTimeout() {
   stopOrderTimer();
@@ -357,7 +373,9 @@ function generateQuestion() {
     el("floorMeta").textContent = `FLOOR ${game.floor} · ORDER ${game.floorOrdersDone + 1}/${ORDERS_PER_FLOOR}`;
   }
   qEl.innerHTML = game.current.questionHtml;
-  qEl.classList.remove("pop"); void qEl.offsetWidth; qEl.classList.add("pop");
+  qEl.classList.remove("pop", "urg-warn", "urg-danger", "urg-rage");
+  void qEl.offsetWidth;
+  qEl.classList.add("pop");
   feedback.className = "feedback";
   feedback.textContent = game.boss ? `Hit ${game.boss.name} — name the price.` : `Name your price.`;
   input.value = "";
@@ -498,6 +516,7 @@ function startDrill() {
   el("relicDraft").classList.add("hidden");
   el("gameover").classList.remove("show"); el("gameover").classList.add("hidden");
   hideBoss();
+  Monster.reset();
   Chart.reset();
   FX.setAmbient(true); FX.audio(); FX.sfx.deal();
   clearInterval(game.timerId);
@@ -509,6 +528,7 @@ function gameOver() {
   game.playing = false; game.current = null;
   clearInterval(game.timerId);
   stopOrderTimer();
+  Monster.reset();
   FX.setAmbient(false);
   FX.sfx.gameover();
 
@@ -703,6 +723,7 @@ input.addEventListener("keydown", e => {
 // ─── Boot ─────────────────────────────────────────────────────────
 FX.init();
 Chart.init();
+Monster.init();
 buildTicker();
 renderBoard();
 updateHUD();

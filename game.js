@@ -561,6 +561,7 @@ const Monster = (() => {
       cx.fillStyle = g;
       cx.fillRect(0, 0, W, H);
     }
+  }
 
   // A pixel bomb hugging the left edge. It swells and heats up as the timer
   // drains; its fuse burns down to the casing right as time runs out.

@@ -400,6 +400,11 @@ const Monster = (() => {
       const qr = qEl.getBoundingClientRect(), cr = cv.getBoundingClientRect();
       if (cr.height) qCenterY = (qr.top - cr.top) + qr.height / 2;
     }
+    cx.shadowBlur = 0;
+
+    // ── bomb on the left, fuse burning toward the deadline ──
+    if (boom) drawExplosion(t);
+    else      drawBomb(t, u, qCenterY);
 
     // ── bomb on the left, fuse burning toward the deadline ──
     if (boom) drawExplosion(t);

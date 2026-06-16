@@ -74,6 +74,10 @@ const FX = (() => {
     gameover() {
       sweep(440, 110, 0, 0.7, "sawtooth", 0.08);
       tone(196, 0.2, 0.5, "triangle", 0.06);
+    },
+    heartbeat() {
+      tone(80, 0, 0.1, "sine", 0.055);
+      tone(60, 0.18, 0.08, "sine", 0.042);
     }
   };
 
@@ -336,4 +340,167 @@ const Chart = (() => {
   return { init, pump, reset };
 })();
 window.Chart = Chart;
+
+// ─────────────────────────────────────────────────────────────────
+// Monster — creature eyes that wake and lunge as the timer drains.
+// Rendered on #monsterCanvas, overlaid on the stage behind the UI.
+// ─────────────────────────────────────────────────────────────────
+const Monster = (() => {
+  let cv, cx, W = 0, H = 0, dpr = 1;
+  let urgency = 0, blink = 0, blinkTimer = 0;
+  let running = false, active = false;
+
+  const lerp = (a, b, t) => a + (b - a) * Math.max(0, Math.min(1, t));
+
+  function eyeRgb(u) {
+    // cyan (calm) → gold (warn) → blood-red (rage)
+    if (u < 0.5) return [lerp(91, 255, u * 2), lerp(209, 200, u * 2), lerp(255, 40, u * 2)];
+    const t = (u - 0.5) * 2;
+    return [255, lerp(200, 28, t), lerp(40, 28, t)];
+  }
+
+  function resize() {
+    if (!cv) return;
+    dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const r = cv.getBoundingClientRect();
+    W = r.width; H = r.height;
+    cv.width = W * dpr; cv.height = H * dpr;
+    cx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+
+  function init() {
+    cv = document.getElementById("monsterCanvas");
+    if (!cv) return;
+    cx = cv.getContext("2d");
+    resize();
+    window.addEventListener("resize", resize);
+    running = true;
+    requestAnimationFrame(loop);
+  }
+
+  function loop(ts) {
+    if (!running) return;
+    cx.clearRect(0, 0, W, H);
+    if (active) draw(ts);
+    requestAnimationFrame(loop);
+  }
+
+  function draw(ts) {
+    const breathAmp  = lerp(3.5, 0.6, urgency);
+    const breathRate = lerp(0.0012, 0.007, urgency);
+    const breathY    = Math.sin(ts * breathRate) * breathAmp;
+
+    // Eyes lunge downward as urgency rises — monster leaning in toward the question
+    const eyeY    = H * lerp(0.17, 0.38, urgency) + breathY;
+    const eyeSize = lerp(8, 26, urgency);
+    const spread  = lerp(46, 16, urgency); // eyes converge as they lunge
+    const cx0     = W / 2;
+
+    const [er, eg, eb] = eyeRgb(urgency).map(Math.round);
+    const eCol = `rgb(${er},${eg},${eb})`;
+
+    // Blink: frequent at rest, almost never at RAGE (unblinking stare)
+    blinkTimer += 0.016;
+    const blinkInterval = lerp(3.0, 20, urgency);
+    if (blinkTimer > blinkInterval + Math.random() * 2) { blink = 1; blinkTimer = 0; }
+    if (blink > 0) blink = Math.max(0, blink - 0.1);
+
+    // Half-lidded rest at low urgency — eyes "open" as monster wakes
+    const restLid = lerp(0.52, 0, Math.min(1, urgency * 3.5));
+
+    // Fade in from dim to vivid as urgency climbs
+    const alpha = lerp(0.2, 1.0, Math.min(1, urgency * 3.5));
+
+    const lx = cx0 - spread - eyeSize * 0.5;
+    const rx = cx0 + spread + eyeSize * 0.5;
+
+    cx.save();
+    cx.globalAlpha = alpha;
+
+    drawEye(lx, eyeY, eyeSize, eCol, Math.max(blink, restLid), ts, -1);
+    drawEye(rx, eyeY, eyeSize, eCol, Math.max(blink, restLid), ts, +1);
+
+    // Angry brows appear at urgency > 0.3
+    if (urgency > 0.3) {
+      const str = Math.min(1, (urgency - 0.3) / 0.5);
+      cx.strokeStyle = eCol;
+      cx.lineWidth   = 1.5 + str * 2.5;
+      cx.lineCap     = "round";
+      cx.shadowColor = eCol;
+      cx.shadowBlur  = 4 + str * 10;
+      const bY = eyeY - eyeSize * 0.95 - str * 5;
+      cx.beginPath(); cx.moveTo(lx - eyeSize * 0.9, bY - str * 6); cx.lineTo(lx + eyeSize * 0.7, bY + str * 4); cx.stroke();
+      cx.beginPath(); cx.moveTo(rx + eyeSize * 0.9, bY - str * 6); cx.lineTo(rx - eyeSize * 0.7, bY + str * 4); cx.stroke();
+      cx.shadowBlur = 0;
+    }
+
+    // Fanged mouth appears at urgency > 0.58
+    if (urgency > 0.58) {
+      const str   = Math.min(1, (urgency - 0.58) / 0.32);
+      const mY    = eyeY + eyeSize * 2.0 + str * 6;
+      const mHalf = (spread + eyeSize) * 0.65 * str;
+      cx.strokeStyle = eCol;
+      cx.lineWidth   = 1.8 + str;
+      cx.lineCap     = "round";
+      cx.lineJoin    = "round";
+      cx.shadowColor = eCol;
+      cx.shadowBlur  = 8 + str * 10;
+      cx.beginPath();
+      cx.moveTo(cx0 - mHalf, mY);
+      for (let i = 0; i <= 6; i++) {
+        const px = cx0 - mHalf + (mHalf * 2 / 6) * i;
+        cx.lineTo(px, mY + (i % 2 === 1 ? str * 9 : 0));
+      }
+      cx.lineTo(cx0 + mHalf, mY);
+      cx.stroke();
+      cx.shadowBlur = 0;
+    }
+
+    cx.restore();
+
+    // RAGE vignette at urgency > 0.78 — independent of base alpha
+    if (urgency > 0.78) {
+      const str   = (urgency - 0.78) / 0.22;
+      const pulse = (Math.sin(ts * 0.009) + 1) / 2;
+      cx.save();
+      cx.globalAlpha = str * pulse * 0.08;
+      cx.fillStyle = "#ff1530";
+      cx.fillRect(0, 0, W, H);
+      cx.restore();
+    }
+  }
+
+  function drawEye(x, y, size, eCol, blinkVal, ts, side) {
+    const openH = 1 - blinkVal * 0.94;
+    const pupX  = x + side * urgency * 4 * Math.sin(ts * 0.0018);
+
+    cx.shadowColor = eCol;
+    cx.shadowBlur  = 8 + urgency * 18;
+
+    // Sclera
+    cx.fillStyle = urgency > 0.55 ? "rgba(28,3,5,0.95)" : "rgba(6,9,20,0.92)";
+    cx.beginPath(); cx.ellipse(x, y, size, size * openH, 0, 0, Math.PI * 2); cx.fill();
+
+    // Iris
+    cx.fillStyle = eCol;
+    cx.beginPath(); cx.ellipse(pupX, y, size * 0.57, size * 0.57 * openH, 0, 0, Math.PI * 2); cx.fill();
+
+    // Pupil: vertical slit at calm, wider at rage
+    const pupW = lerp(0.17, 0.34, urgency);
+    cx.fillStyle = "#000";
+    cx.beginPath(); cx.ellipse(pupX, y, size * pupW, size * 0.27 * openH, 0, 0, Math.PI * 2); cx.fill();
+
+    // Highlight glint
+    cx.shadowBlur = 0;
+    cx.fillStyle = `rgba(255,255,255,${0.55 - urgency * 0.25})`;
+    cx.beginPath(); cx.arc(x - size * 0.18, y - size * 0.18, size * 0.1 * openH + 0.5, 0, Math.PI * 2); cx.fill();
+  }
+
+  function setUrgency(u) { urgency = Math.max(0, Math.min(1, u)); }
+  function setActive(a)  { active = a; if (!a) urgency = 0; }
+  function reset()       { urgency = 0; active = false; blink = 0; blinkTimer = 0; }
+
+  return { init, setUrgency, setActive, reset };
+})();
+window.Monster = Monster;
 

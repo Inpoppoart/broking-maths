@@ -508,4 +508,17 @@ body {
 .primary.big { width: 100%; padding: 0.85rem; font-family: var(--pixel); font-size: 0.6rem; background: linear-gradient(180deg, #57ffa0, var(--green)); border: none; border-radius: 10px; color: var(--bg); cursor: pointer; box-shadow: 0 0 18px rgba(57,255,139,0.5); }
 @keyframes goIn { 0% { opacity: 0; transform: scale(0.8) translateY(20px); } 100% { opacity: 1; transform: scale(1) translateY(0); } }
 
+/* ── price range panel ── */
+.range-inputs { display: flex; gap: 0.6rem; margin-bottom: 0.5rem; }
+.range-inputs > div { flex: 1; display: flex; flex-direction: column; }
+.range-inputs input {
+  width: 100%; padding: 0.4rem 0.55rem; margin-top: 0.3rem;
+  font-family: var(--mono); font-size: 0.88rem; font-weight: 700;
+  background: var(--bg2); border: 1.5px solid var(--border2); border-radius: 6px;
+  color: var(--green); outline: none; -webkit-appearance: none;
+}
+.range-inputs input:focus { border-color: var(--green); box-shadow: 0 0 10px rgba(57,255,139,0.25); }
+.range-inputs input::placeholder { color: var(--muted); font-weight: 500; font-size: 0.78rem; }
+#rangeStatus { margin-top: 0.45rem; min-height: 1.1em; }
+
 .hidden { display: none !important; }

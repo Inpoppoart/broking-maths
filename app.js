@@ -17,8 +17,9 @@ const SPREAD_NUMBERS = [
   69.125, 74.500, 79.875
 ];
 
-let activeLevels = LEVEL_NUMBERS;
+let activeLevels  = LEVEL_NUMBERS;
 let activeSpreads = SPREAD_NUMBERS;
+let activeRange   = null; // { min, max } in eighths, or null = use pools
 
 // ─── Roguelike constants ───────────────────────────────────────────
 const ORDERS_PER_FLOOR = 5;
@@ -144,6 +145,29 @@ function parseAnswer(raw) {
 
 function validRange(ans) { return ans >= 70*8 && ans <= 350*8; }
 
+// ─── Price range ──────────────────────────────────────────────────
+function parseRangeValue(raw) {
+  const e = parseAnswer(raw.trim()); // reuse existing parser: handles 92.5, 92 3/8, etc.
+  if (e === null || e < 70*8 || e > 350*8) return null;
+  return e;
+}
+function setRange() {
+  const minE = parseRangeValue(el("rangeMinInput").value);
+  const maxE = parseRangeValue(el("rangeMaxInput").value);
+  const st = el("rangeStatus");
+  if (minE === null) { st.textContent = "Invalid 'From' — try 90, 92.5, or 92 3/8."; return; }
+  if (maxE === null) { st.textContent = "Invalid 'To' — try 110 or 109.875."; return; }
+  if (minE >= maxE)  { st.textContent = "'From' must be less than 'To'."; return; }
+  activeRange = { min: minE, max: maxE };
+  st.textContent = `Set: ${valueToMixedText(minE)} – ${valueToMixedText(maxE)} (${((maxE - minE) / 8).toFixed(3)} wide).`;
+}
+function clearRange() {
+  activeRange = null;
+  el("rangeMinInput").value = "";
+  el("rangeMaxInput").value = "";
+  el("rangeStatus").textContent = "Cleared — using default pools.";
+}
+
 // ─── Question builders ────────────────────────────────────────────
 function buildQ(aE, bE, op, ans, mode) {
   return {
@@ -153,15 +177,18 @@ function buildQ(aE, bE, op, ans, mode) {
     explainer: `${valueToMixedText(aE)} ${op} ${valueToMixedText(bE)} = ${valueToMixedText(ans)}`
   };
 }
+function pickA_easy()  { return activeRange ? randInt(activeRange.min, activeRange.max) : randInt(70*8, 99*8+7); }
+function pickA_pool()  { return activeRange ? randInt(activeRange.min, activeRange.max) : toEighths(choice(activeLevels)); }
+
 function makeEasy() {
   let a,b,op,ans,t=0;
-  do { a=randInt(70*8,99*8+7); b=randInt(10*8,49*8+7); op=Math.random()<0.30?"+":"-"; ans=op==="+"?a+b:a-b; t++; }
+  do { a=pickA_easy(); b=randInt(10*8,49*8+7); op=Math.random()<0.30?"+":"-"; ans=op==="+"?a+b:a-b; t++; }
   while(!validRange(ans)&&t<80);
   return buildQ(a,b,op,ans,"easy");
 }
 function makeMedium() {
   let a,b,op,ans,t=0;
-  do { a=toEighths(choice(activeLevels)); b=toEighths(choice(activeSpreads)); op=Math.random()<0.30?"+":"-"; ans=op==="+"?a+b:a-b; t++; }
+  do { a=pickA_pool(); b=toEighths(choice(activeSpreads)); op=Math.random()<0.30?"+":"-"; ans=op==="+"?a+b:a-b; t++; }
   while(!validRange(ans)&&t<80);
   return buildQ(a,b,op,ans,"medium");
 }
@@ -169,7 +196,7 @@ function makeHard() {
   // Forced carry (add) or borrow (sub) in the eighths column — 繰り上がり
   let a,b,op,ans,t=0;
   do {
-    a  = toEighths(choice(activeLevels));
+    a  = pickA_pool();
     b  = toEighths(choice(activeSpreads));
     op = Math.random() < 0.30 ? "+" : "-";
     let inner = 0;
@@ -754,6 +781,8 @@ el("settingsBtn").addEventListener("click", () => el("settingsPanel").classList.
 el("saveSettings").addEventListener("click", saveSettings);
 el("loadPoolBtn").addEventListener("click", loadPool);
 el("resetPoolBtn").addEventListener("click", resetPool);
+el("setRangeBtn").addEventListener("click", setRange);
+el("clearRangeBtn").addEventListener("click", clearRange);
 el("soundBtn").addEventListener("click", () => {
   const on = !FX.getSound(); FX.setSound(on);
   el("soundBtn").textContent = on ? "🔊" : "🔇";

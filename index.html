@@ -138,6 +138,27 @@
       </details>
     </section>
 
+    <section class="panel">
+      <details id="rangeDetails"><summary>Price range</summary>
+        <p class="small-note">Lock the main price to a range — multiples of ⅛ between 70–350. Spreads stay the same.</p>
+        <div class="range-inputs">
+          <div>
+            <label class="pool-label">From</label>
+            <input id="rangeMinInput" inputmode="decimal" autocomplete="off" placeholder="e.g. 90 or 92.5" />
+          </div>
+          <div>
+            <label class="pool-label">To</label>
+            <input id="rangeMaxInput" inputmode="decimal" autocomplete="off" placeholder="e.g. 110 or 109.875" />
+          </div>
+        </div>
+        <div class="pool-actions">
+          <button id="setRangeBtn" class="primary">Set</button>
+          <button id="clearRangeBtn">Clear</button>
+        </div>
+        <div id="rangeStatus" class="small-note"></div>
+      </details>
+    </section>
+
     <section id="settingsPanel" class="settings hidden">
       <h2>Settings</h2>
       <label class="check">

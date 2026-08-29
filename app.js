@@ -183,6 +183,29 @@ function clearRange() {
   el("rangeStatus").textContent = "Cleared — using default pools.";
 }
 
+// ─── Price range ──────────────────────────────────────────────────
+function parseRangeValue(raw) {
+  const e = parseAnswer(raw.trim()); // reuse existing parser: handles 92.5, 92 3/8, etc.
+  if (e === null || e < 70*8 || e > 350*8) return null;
+  return e;
+}
+function setRange() {
+  const minE = parseRangeValue(el("rangeMinInput").value);
+  const maxE = parseRangeValue(el("rangeMaxInput").value);
+  const st = el("rangeStatus");
+  if (minE === null) { st.textContent = "Invalid 'From' — try 90, 92.5, or 92 3/8."; return; }
+  if (maxE === null) { st.textContent = "Invalid 'To' — try 110 or 109.875."; return; }
+  if (minE >= maxE)  { st.textContent = "'From' must be less than 'To'."; return; }
+  activeRange = { min: minE, max: maxE };
+  st.textContent = `Set: ${valueToMixedText(minE)} – ${valueToMixedText(maxE)} (${((maxE - minE) / 8).toFixed(3)} wide).`;
+}
+function clearRange() {
+  activeRange = null;
+  el("rangeMinInput").value = "";
+  el("rangeMaxInput").value = "";
+  el("rangeStatus").textContent = "Cleared — using default pools.";
+}
+
 // ─── Question builders ────────────────────────────────────────────
 // Classify a question into learning categories (3 independent axes).
 function computeTags(a, b, op) {

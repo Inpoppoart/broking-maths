@@ -57,9 +57,10 @@
       <button class="mode active" data-mode="easy">EASY</button>
       <button class="mode" data-mode="medium">MED</button>
       <button class="mode" data-mode="hard">HARD</button>
-      <button class="mode" data-mode="mixed">MIXED</button>
+      <button class="mode" data-mode="mixed">MIX</button>
+      <button class="mode learn" data-mode="learn">📚 LEARN</button>
     </div>
-    <div id="modeHint" class="mode-hint">2-digit price ± 2-digit with eighths. Both sides have fractions.</div>
+    <div id="modeHint" class="mode-hint">10–300, fractions in ⅛. Gentle spread.</div>
 
     <div id="conditionBanner" class="cond-banner hidden"></div>
 
@@ -96,6 +97,16 @@
         <button data-frac=".750">¾</button>
         <button data-frac=".875">⅞</button>
       </div>
+      <div id="frac16" class="fraction-buttons frac16 hidden">
+        <button data-frac=".0625">1/16</button>
+        <button data-frac=".1875">3/16</button>
+        <button data-frac=".3125">5/16</button>
+        <button data-frac=".4375">7/16</button>
+        <button data-frac=".5625">9/16</button>
+        <button data-frac=".6875">11/16</button>
+        <button data-frac=".8125">13/16</button>
+        <button data-frac=".9375">15/16</button>
+      </div>
 
         <div class="actions">
           <button id="startBtn" class="primary">DEAL</button>
@@ -111,6 +122,15 @@
     </div>
 
     <section class="panel">
+      <details open><summary>Progress · weak spots</summary>
+        <p id="weakHeadline" class="ws-headline">Play a few orders — insights unlock after 4 each.</p>
+        <div id="weakSpots" class="weak-spots"></div>
+        <p class="small-note">Longer bar = you struggle more (errors + time). Pick <b>📚 LEARN</b> to drill your worst.</p>
+        <button id="resetStatsBtn" class="ws-reset">Reset stats</button>
+      </details>
+    </section>
+
+    <section class="panel">
       <details><summary>Trade blotter</summary>
         <ul id="history" class="blotter"></ul>
       </details>
@@ -118,7 +138,7 @@
 
     <section class="panel">
       <details><summary>Number pool</summary>
-        <p class="small-note">Prices used in HARD orders.</p>
+        <p class="small-note">Reference prices (multiples of ⅛). Use “Price range” to bound questions.</p>
         <div class="board-grid" id="boardGrid"></div>
       </details>
     </section>

@@ -68,14 +68,15 @@ const RANKS = [
   { min: 20, name: "PIT BOSS",  badge: "☼" },
 ];
 
-const BASE_PAYOUT = { easy: 120, medium: 200, hard: 320 };
-const MODE_XP     = { easy: 0,   medium: 6,   hard: 12  };
+const BASE_PAYOUT = { easy: 120, medium: 200, hard: 320, learn: 240 };
+const MODE_XP     = { easy: 0,   medium: 6,   hard: 12,  learn: 10  };
 
 const hints = {
-  easy:   "2-digit price ± 2-digit with eighths. Both sides have fractions.",
-  medium: "Level price ± spread from the pool.",
-  hard:   "Forced carry or borrow in eighths (繰り上がり).",
-  mixed:  "Escalates each floor — starts easy, goes hard."
+  easy:   "10–300, fractions in ⅛. Gentle spread.",
+  medium: "10–300, ⅛ fractions, forced carry/borrow (繰り上がり).",
+  hard:   "10–300, sixteenths (1/16), forced carry/borrow.",
+  mixed:  "Escalates each floor — starts easy, goes hard.",
+  learn:  "Targets your weak spots from your stats."
 };
 
 // ─── Game state ───────────────────────────────────────────────────
@@ -104,25 +105,39 @@ const input    = el("answerInput");
 const stageEl  = document.querySelector(".stage");
 
 // ─── Math helpers ─────────────────────────────────────────────────
-function toEighths(x) { return Math.round(Number(x) * 8); }
+// Internal unit = SIXTEENTHS. 1/8 = 2 units, 1/16 = 1 unit.
+const U = 16;                    // units per whole
+const RANGE_LO = 10, RANGE_HI = 300;
+function toUnits(x) { return Math.round(Number(x) * U); }
+function toEighths(x) { return Math.round(Number(x) * 8); } // legacy, pools
 function lerp(a, b, t) { return a + (b - a) * Math.max(0, Math.min(1, t)); }
 function randInt(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
 function choice(arr) { return arr[randInt(0, arr.length - 1)]; }
-function valueToDecimalText(e) { return (e / 8).toFixed(3); }
+function valueToDecimalText(u) { return (u / U).toFixed(4).replace(/0+$/, "").replace(/\.$/, ""); }
+function frac16(u) { return ((u % U) + U) % U; }
 
-function valueToFracHtml(eighths) {
-  const sign = eighths < 0 ? "−" : "";
-  eighths = Math.abs(eighths);
-  const whole = Math.floor(eighths / 8), frac = eighths % 8;
-  const fr = [null,[1,8],[1,4],[3,8],[1,2],[5,8],[3,4],[7,8]][frac];
+const FRAC_PARTS = [
+  null,[1,16],[1,8],[3,16],[1,4],[5,16],[3,8],[7,16],
+  [1,2],[9,16],[5,8],[11,16],[3,4],[13,16],[7,8],[15,16]
+];
+const FRAC_TEXT = [
+  "","1/16","1/8","3/16","1/4","5/16","3/8","7/16",
+  "1/2","9/16","5/8","11/16","3/4","13/16","7/8","15/16"
+];
+
+function valueToFracHtml(u) {
+  const sign = u < 0 ? "−" : "";
+  u = Math.abs(u);
+  const whole = Math.floor(u / U), frac = u % U;
+  const fr = FRAC_PARTS[frac];
   if (!fr) return sign + whole;
   return `${sign}${whole}<span class="frac"><span>${fr[0]}</span><span>${fr[1]}</span></span>`;
 }
-function valueToMixedText(eighths) {
-  const sign = eighths < 0 ? "-" : "";
-  eighths = Math.abs(eighths);
-  const whole = Math.floor(eighths / 8), frac = eighths % 8;
-  const f = ["","1/8","1/4","3/8","1/2","5/8","3/4","7/8"][frac];
+function valueToMixedText(u) {
+  const sign = u < 0 ? "-" : "";
+  u = Math.abs(u);
+  const whole = Math.floor(u / U), frac = u % U;
+  const f = FRAC_TEXT[frac];
   return sign + whole + (f ? " " + f : "");
 }
 
@@ -131,35 +146,35 @@ function parseAnswer(raw) {
     .replace("⅛"," 1/8").replace("¼"," 1/4").replace("⅜"," 3/8")
     .replace("½"," 1/2").replace("⅝"," 5/8").replace("¾"," 3/4").replace("⅞"," 7/8");
   if (!raw) return null;
-  if (/^-?\d+(\.\d+)?$/.test(raw)) return Math.round(Number(raw) * 8);
+  if (/^-?\d+(\.\d+)?$/.test(raw)) return Math.round(Number(raw) * U);
   const mixed = raw.match(/^(-?\d+)\s+(\d+)\/(\d+)$/);
   if (mixed) {
     const whole = Number(mixed[1]), num = Number(mixed[2]), den = Number(mixed[3]);
     if (!den) return null;
-    return whole * 8 + (whole < 0 ? -1 : 1) * Math.round((num / den) * 8);
+    return whole * U + (whole < 0 ? -1 : 1) * Math.round((num / den) * U);
   }
   const pure = raw.match(/^(-?\d+)\/(\d+)$/);
-  if (pure) { const n=Number(pure[1]),d=Number(pure[2]); if(!d) return null; return Math.round((n/d)*8); }
+  if (pure) { const n=Number(pure[1]),d=Number(pure[2]); if(!d) return null; return Math.round((n/d)*U); }
   return null;
 }
 
-function validRange(ans) { return ans >= 70*8 && ans <= 350*8; }
+function validRange(ans) { return ans >= RANGE_LO*U && ans <= RANGE_HI*U; }
 
 // ─── Price range ──────────────────────────────────────────────────
 function parseRangeValue(raw) {
-  const e = parseAnswer(raw.trim()); // reuse existing parser: handles 92.5, 92 3/8, etc.
-  if (e === null || e < 70*8 || e > 350*8) return null;
+  const e = parseAnswer(raw.trim()); // reuse existing parser: handles 92.5, 92 3/16, etc.
+  if (e === null || e < RANGE_LO*U || e > RANGE_HI*U) return null;
   return e;
 }
 function setRange() {
   const minE = parseRangeValue(el("rangeMinInput").value);
   const maxE = parseRangeValue(el("rangeMaxInput").value);
   const st = el("rangeStatus");
-  if (minE === null) { st.textContent = "Invalid 'From' — try 90, 92.5, or 92 3/8."; return; }
-  if (maxE === null) { st.textContent = "Invalid 'To' — try 110 or 109.875."; return; }
+  if (minE === null) { st.textContent = "Invalid 'From' — try 90, 92.5, or 92 3/16 (10–300)."; return; }
+  if (maxE === null) { st.textContent = "Invalid 'To' — try 110 or 109.875 (10–300)."; return; }
   if (minE >= maxE)  { st.textContent = "'From' must be less than 'To'."; return; }
   activeRange = { min: minE, max: maxE };
-  st.textContent = `Set: ${valueToMixedText(minE)} – ${valueToMixedText(maxE)} (${((maxE - minE) / 8).toFixed(3)} wide).`;
+  st.textContent = `Set: ${valueToMixedText(minE)} – ${valueToMixedText(maxE)} (${((maxE - minE) / U).toFixed(3)} wide).`;
 }
 function clearRange() {
   activeRange = null;
@@ -169,52 +184,101 @@ function clearRange() {
 }
 
 // ─── Question builders ────────────────────────────────────────────
+// Classify a question into learning categories (3 independent axes).
+function computeTags(a, b, op) {
+  const fa = frac16(a), fb = frac16(b);
+  const sixteenth = (fa % 2 !== 0) || (fb % 2 !== 0);     // any true 1/16 part
+  const carry = op === "+" ? (fa + fb >= U) : (fa < fb);   // carry / borrow needed
+  return {
+    op:   op === "+" ? "add" : "sub",
+    frac: sixteenth ? "sixteenth" : "eighth",
+    cb:   carry ? "carry" : "plain"
+  };
+}
 function buildQ(aE, bE, op, ans, mode) {
+  const t = computeTags(aE, bE, op);
   return {
     question: `${valueToMixedText(aE)} ${op} ${valueToMixedText(bE)}`,
     questionHtml: `${valueToFracHtml(aE)} <span class="op">${op}</span> ${valueToFracHtml(bE)}`,
     answer: ans, mode,
+    cats: [t.op, t.frac, t.cb],
     explainer: `${valueToMixedText(aE)} ${op} ${valueToMixedText(bE)} = ${valueToMixedText(ans)}`
   };
 }
-function pickA_easy()  { return activeRange ? randInt(activeRange.min, activeRange.max) : randInt(70*8, 99*8+7); }
-function pickA_pool()  { return activeRange ? randInt(activeRange.min, activeRange.max) : toEighths(choice(activeLevels)); }
 
-function makeEasy() {
-  let a,b,op,ans,t=0;
-  do { a=pickA_easy(); b=randInt(10*8,49*8+7); op=Math.random()<0.30?"+":"-"; ans=op==="+"?a+b:a-b; t++; }
-  while(!validRange(ans)&&t<80);
-  return buildQ(a,b,op,ans,"easy");
+// Whole-number band for operand A — honours the custom price range if set.
+function aWholeBand() {
+  if (activeRange) return [Math.ceil(activeRange.min / U), Math.floor(activeRange.max / U)];
+  return [RANGE_LO, RANGE_HI];
 }
-function makeMedium() {
-  let a,b,op,ans,t=0;
-  do { a=pickA_pool(); b=toEighths(choice(activeSpreads)); op=Math.random()<0.30?"+":"-"; ans=op==="+"?a+b:a-b; t++; }
-  while(!validRange(ans)&&t<80);
-  return buildQ(a,b,op,ans,"medium");
-}
-function makeHard() {
-  // Forced carry (add) or borrow (sub) in the eighths column — 繰り上がり
-  let a,b,op,ans,t=0;
-  do {
-    a  = pickA_pool();
-    b  = toEighths(choice(activeSpreads));
-    op = Math.random() < 0.30 ? "+" : "-";
-    let inner = 0;
-    while (inner < 20) {
-      const ok = op === "-" ? (a % 8) < (b % 8) : (a % 8) + (b % 8) >= 8;
-      if (ok) break;
-      b = toEighths(choice(activeSpreads));
-      inner++;
+
+// Core generator. gran = 2 → eighths, 1 → sixteenths.
+// force → guarantee a carry (add) / borrow (sub) in the fraction column.
+function generatePair({ gran, op, force, bWholeMax = 60 }) {
+  const steps = U / gran;
+  const [aLo, aHi] = aWholeBand();
+  for (let t = 0; t < 250; t++) {
+    let fa, fb;
+    if (force) {
+      if (op === "-") {                       // need frac(a) < frac(b)
+        fa = randInt(0, steps - 2) * gran;
+        fb = randInt(fa / gran + 1, steps - 1) * gran;
+      } else {                                // need frac(a)+frac(b) >= U
+        fa = randInt(1, steps - 1) * gran;
+        const needSteps = Math.ceil((U - fa) / gran);
+        fb = randInt(needSteps, steps - 1) * gran;
+      }
+    } else {
+      fa = randInt(0, steps - 1) * gran;
+      fb = randInt(0, steps - 1) * gran;
     }
-    ans = op === "+" ? a+b : a-b;
-    t++;
-  } while (!validRange(ans) && t < 80);
-  return buildQ(a,b,op,ans,"hard");
+    let wa, wb;
+    if (op === "+") {
+      const hiA = Math.min(aHi, RANGE_HI - 1);
+      if (aLo > hiA) break;
+      wa = randInt(aLo, hiA);
+      const room = RANGE_HI - wa - 1;         // leave space for a carry
+      if (room < 1) continue;
+      wb = randInt(1, Math.min(bWholeMax, room));
+    } else {
+      const loA = Math.max(aLo, RANGE_LO + 2);
+      if (loA > aHi) break;
+      wa = randInt(loA, aHi);
+      const hi = Math.min(bWholeMax, wa - RANGE_LO - 1); // keep answer >= RANGE_LO
+      if (hi < 1) continue;
+      wb = randInt(1, hi);
+    }
+    const a = wa * U + fa, b = wb * U + fb;
+    const ans = op === "+" ? a + b : a - b;
+    if (validRange(ans)) return { a, b, op, ans };
+  }
+  // fallback — always yields a valid pair
+  const wa = randInt(50, 250), wb = randInt(1, 20);
+  const a = wa * U, b = wb * U;
+  return op === "-" ? { a, b, op: "-", ans: a - b } : { a, b, op: "+", ans: a + b };
 }
+
+const MODE_PARAMS = {
+  easy:   { gran: 2, force: false, bMax: 25 },  // 1/8, no forced carry, small spread
+  medium: { gran: 2, force: true,  bMax: 60 },  // 1/8, forced carry/borrow
+  hard:   { gran: 1, force: true,  bMax: 60 },  // 1/16, forced carry/borrow
+};
+
+function makeForMode(mode) {
+  if (mode === "learn") {
+    const lp = learnParams();
+    const p = generatePair({ gran: lp.gran, op: lp.op, force: lp.force, bWholeMax: 60 });
+    return buildQ(p.a, p.b, p.op, p.ans, "learn");
+  }
+  const mp = MODE_PARAMS[mode] || MODE_PARAMS.medium;
+  const op = Math.random() < 0.7 ? "-" : "+";  // subtraction-biased
+  const p = generatePair({ gran: mp.gran, op, force: mp.force, bWholeMax: mp.bMax });
+  return buildQ(p.a, p.b, p.op, p.ans, mode);
+}
+
 function makeQuestion() {
   let mode = game.mode;
   if (game.boss) {
-    // bosses escalate with depth
     const r = Math.random();
     if (game.floor >= 15) mode = r < 0.75 ? "hard" : "medium";
     else if (game.floor >= 10) mode = r < 0.55 ? "hard" : "medium";
@@ -226,9 +290,99 @@ function makeQuestion() {
     else if (game.floor >= 3) mode = r < 0.20 ? "hard" : r < 0.60 ? "medium" : "easy";
     else                      mode = r < 0.20 ? "medium" : "easy";
   }
-  if (mode === "easy")   return makeEasy();
-  if (mode === "medium") return makeMedium();
-  return makeHard();
+  return makeForMode(mode);
+}
+
+// ─── Learning system ──────────────────────────────────────────────
+// Tracks accuracy + speed per category so we can surface weak spots and
+// let LEARN mode target them. Persisted in localStorage.
+const LEARN_KEY = "pb_learn_v1";
+const CATS = [
+  { id: "sub",       label: "Subtraction",       axis: "op",   icon: "−" },
+  { id: "add",       label: "Addition",          axis: "op",   icon: "+" },
+  { id: "carry",     label: "Carry / borrow",    axis: "cb",   icon: "⇄" },
+  { id: "plain",     label: "No carry / borrow", axis: "cb",   icon: "·" },
+  { id: "sixteenth", label: "Sixteenths (1/16)", axis: "frac", icon: "1/16" },
+  { id: "eighth",    label: "Eighths (½ ¼ ⅛)",   axis: "frac", icon: "1/8" },
+];
+const MIN_SAMPLES = 4;
+
+function loadLearn() {
+  try { return JSON.parse(localStorage.getItem(LEARN_KEY)) || {}; }
+  catch (e) { return {}; }
+}
+function saveLearn(s) {
+  try { localStorage.setItem(LEARN_KEY, JSON.stringify(s)); } catch (e) {}
+}
+// Struggle score in [0,1]: 65% error rate + 35% slowness. null if too few samples.
+function catScore(b) {
+  if (!b || b.n < MIN_SAMPLES) return null;
+  const err  = 1 - b.c / b.n;
+  const avg  = b.ms / b.n;
+  const slow = Math.max(0, Math.min(1, (avg - 2000) / 8000)); // 2s good → 10s bad
+  return err * 0.65 + slow * 0.35;
+}
+function recordResult(correct, ms) {
+  if (!game.current || !game.current.cats) return;
+  const s = loadLearn();
+  const t = Math.min(Math.max(ms, 0), 20000);
+  game.current.cats.forEach(id => {
+    const b = s[id] || (s[id] = { n: 0, c: 0, ms: 0 });
+    b.n++; if (correct) b.c++; b.ms += t;
+  });
+  saveLearn(s);
+  renderWeakSpots();
+}
+// Pick the weaker side of an axis (higher struggle score); default if no data.
+function worseOf(s, aId, bId, def) {
+  const sa = catScore(s[aId]), sb = catScore(s[bId]);
+  if (sa == null && sb == null) return def;
+  if (sa == null) return bId;
+  if (sb == null) return aId;
+  return sa >= sb ? aId : bId;
+}
+// LEARN mode targets the weakest side of every axis at once.
+function learnParams() {
+  const s = loadLearn();
+  return {
+    op:    worseOf(s, "sub", "add", "sub") === "sub" ? "-" : "+",
+    gran:  worseOf(s, "sixteenth", "eighth", "eighth") === "sixteenth" ? 1 : 2,
+    force: worseOf(s, "carry", "plain", "carry") === "carry",
+  };
+}
+function resetLearn() {
+  try { localStorage.removeItem(LEARN_KEY); } catch (e) {}
+  renderWeakSpots();
+}
+function renderWeakSpots() {
+  const wrap = el("weakSpots");
+  if (!wrap) return;
+  const s = loadLearn();
+  const scored = CATS.map(c => ({ ...c, b: s[c.id], score: catScore(s[c.id]) }));
+  const ready = scored.filter(c => c.score != null);
+  const headline = el("weakHeadline");
+
+  if (!ready.length) {
+    if (headline) headline.textContent = "Play a few orders — insights unlock after " + MIN_SAMPLES + " each.";
+    wrap.innerHTML = "";
+  } else {
+    const worst = ready.reduce((m, c) => c.score > m.score ? c : m, ready[0]);
+    if (headline) headline.innerHTML = `Focus area: <b>${worst.label}</b>`;
+    wrap.innerHTML = scored.map(c => {
+      const has = c.b && c.b.n;
+      const acc = has ? Math.round(c.b.c / c.b.n * 100) : 0;
+      const avg = has ? (c.b.ms / c.b.n / 1000).toFixed(1) + "s" : "—";
+      const n   = has ? c.b.n : 0;
+      const scorePct = c.score != null ? Math.round(c.score * 100) : 0;
+      const cls = c.score != null && c === worst ? " worst" : "";
+      const dim = c.score == null ? " dim" : "";
+      return `<div class="ws-row${cls}${dim}">
+        <span class="ws-label">${c.label}</span>
+        <span class="ws-meter"><span class="ws-fill" style="width:${scorePct}%"></span></span>
+        <span class="ws-stat">${has ? acc + "% · " + avg + " · n" + n : "no data"}</span>
+      </div>`;
+    }).join("");
+  }
 }
 
 // ─── Relics ───────────────────────────────────────────────────────
@@ -427,6 +581,7 @@ function stopOrderTimer() {
 function onOrderTimeout() {
   if (!game.current || game.answering) return;
   game.answering = true;
+  recordResult(false, performance.now() - game.questionStart);
   Monster.explode();
   stopOrderTimer();
   applyMiss(game.current.answer, "💥 BOOM — TIMED OUT", "BOOM!");
@@ -494,9 +649,10 @@ function checkAnswer() {
 
   const correct = game.current.answer;
   const qMode = game.current.mode;
+  const elapsed = performance.now() - game.questionStart;
+  recordResult(userAns === correct, elapsed);
 
   if (userAns === correct) {
-    const elapsed = performance.now() - game.questionStart;
     const cutoff = hasRelic("speed") ? 5000 : 3000;
     let speed = 1, speedLabel = "";
     if      (elapsed < cutoff) { speed = 1.5; speedLabel = "FAST! "; }
@@ -704,6 +860,8 @@ function setMode(mode) {
   game.mode = mode;
   document.querySelectorAll(".mode").forEach(btn => btn.classList.toggle("active", btn.dataset.mode === mode));
   el("modeHint").textContent = hints[mode];
+  // sixteenth keypad only where 1/16 answers can appear
+  el("frac16").classList.toggle("hidden", !(mode === "hard" || mode === "learn"));
   FX.sfx.click();
   if (!game.playing) {
     qEl.innerHTML = "PRESS&nbsp;DEAL";
@@ -744,7 +902,7 @@ function buildTicker() {
 // ─── Pools ────────────────────────────────────────────────────────
 function parsePool(text) {
   return text.split(/[\n,]+/).map(s => s.trim()).filter(Boolean).map(Number)
-    .filter(n => !isNaN(n) && n >= 70 && n <= 350 && Math.abs(Math.round(n*8)-n*8) < 0.001);
+    .filter(n => !isNaN(n) && n >= RANGE_LO && n <= RANGE_HI && Math.abs(Math.round(n*U)-n*U) < 0.001);
 }
 function loadPool() {
   const lvlText = el("customLevels").value.trim(), sprText = el("customSpreads").value.trim();
@@ -783,6 +941,7 @@ el("loadPoolBtn").addEventListener("click", loadPool);
 el("resetPoolBtn").addEventListener("click", resetPool);
 el("setRangeBtn").addEventListener("click", setRange);
 el("clearRangeBtn").addEventListener("click", clearRange);
+el("resetStatsBtn").addEventListener("click", () => { resetLearn(); FX.sfx.click(); });
 el("soundBtn").addEventListener("click", () => {
   const on = !FX.getSound(); FX.setSound(on);
   el("soundBtn").textContent = on ? "🔊" : "🔇";
@@ -798,6 +957,7 @@ Chart.init();
 Monster.init();
 buildTicker();
 renderBoard();
+renderWeakSpots();
 updateHUD();
 if (best.floor) { feedback.textContent = `Best run: floor ${best.floor} · ${fmtCash(best.cash)}. Press DEAL.`; }
 

@@ -508,6 +508,39 @@ body {
 .primary.big { width: 100%; padding: 0.85rem; font-family: var(--pixel); font-size: 0.6rem; background: linear-gradient(180deg, #57ffa0, var(--green)); border: none; border-radius: 10px; color: var(--bg); cursor: pointer; box-shadow: 0 0 18px rgba(57,255,139,0.5); }
 @keyframes goIn { 0% { opacity: 0; transform: scale(0.8) translateY(20px); } 100% { opacity: 1; transform: scale(1) translateY(0); } }
 
+/* ── learn mode button ── */
+.modes { gap: 0.25rem; }
+.mode { padding: 0.5rem 0.1rem; font-size: 0.46rem; white-space: nowrap; }
+.mode.learn { border-color: var(--gold); color: var(--gold); }
+.mode.learn.active {
+  color: var(--bg); background: var(--gold); border-color: var(--gold);
+  box-shadow: 0 0 14px rgba(255,210,63,0.5);
+}
+
+/* ── sixteenth keypad ── */
+.frac16 { grid-template-columns: repeat(8, 1fr); margin-top: -0.4rem; }
+.frac16 button { font-size: 0.62rem; padding: 0.45rem 0; color: var(--gold); border-color: rgba(255,210,63,0.4); }
+.frac16 button:hover { background: var(--gold); color: var(--bg); }
+
+/* ── weak spots panel ── */
+.ws-headline { font-size: 0.74rem; color: var(--text); margin-bottom: 0.55rem; line-height: 1.4; }
+.ws-headline b { color: var(--gold); }
+.weak-spots { display: flex; flex-direction: column; gap: 0.32rem; margin-bottom: 0.55rem; }
+.ws-row { display: grid; grid-template-columns: 6.1rem 1fr auto; align-items: center; gap: 0.45rem; }
+.ws-label { font-size: 0.66rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ws-meter { height: 8px; background: var(--bg2); border: 1px solid var(--border); border-radius: 5px; overflow: hidden; }
+.ws-fill { display: block; height: 100%; background: linear-gradient(90deg, var(--green), var(--gold)); transition: width 0.3s; }
+.ws-stat { font-family: var(--mono); font-size: 0.58rem; color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.ws-row.worst .ws-label { color: var(--red); font-weight: 700; }
+.ws-row.worst .ws-fill { background: linear-gradient(90deg, var(--gold), var(--red)); }
+.ws-row.dim { opacity: 0.5; }
+.ws-reset {
+  font-family: var(--pixel); font-size: 0.44rem; letter-spacing: 0.04em;
+  background: var(--panel2); border: 1px solid var(--border2); color: var(--muted);
+  padding: 0.45rem 0.8rem; border-radius: 6px; cursor: pointer;
+}
+.ws-reset:hover { border-color: var(--red); color: var(--red); }
+
 /* ── price range panel ── */
 .range-inputs { display: flex; gap: 0.6rem; margin-bottom: 0.5rem; }
 .range-inputs > div { flex: 1; display: flex; flex-direction: column; }

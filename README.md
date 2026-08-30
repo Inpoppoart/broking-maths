@@ -62,9 +62,15 @@ fractions / mixed; and the weakest pattern named in each category — for exampl
 
 ## Answering
 
-Type the answer and press **Enter** or **GO**. Mixed numbers, decimals and bare
-fractions are all accepted: `135 7/8`, `135.875`, `7/8`, `-3/4`. Fraction keypads
-appear only on the levels where fractions can occur.
+Tap it in on the on-screen numpad and hit **ANSWER !** — no typing. The native
+keyboard is suppressed, so the keys stay put and the layout never shifts.
+
+- `⌫` backspace, `C` clear, `−` toggles a negative (Stage 3B answers go negative)
+- fraction keys appear only on the levels where fractions occur — tap `135` then `⅞` for `135 7/8`
+- a physical keyboard still works: type and press **Enter**
+
+Mixed numbers, decimals and bare fractions are all accepted: `135 7/8`,
+`135.875`, `7/8`, `-3/4`.
 
 ## Files
 

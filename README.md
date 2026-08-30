@@ -1,37 +1,87 @@
-# Broking Maths iPhone App v3
+# Subtraction Drill
 
-Plain add/subtract broking maths app.
+A mental-arithmetic trainer for desk-style subtraction. The aim is automaticity —
+see the calculation, recognise it, answer — rather than working through a long
+conscious chain of steps. It does not teach an alternative method; it drills the
+one you already use until it stops needing thought.
 
-No separate curve mode. The app uses numbers similar to the supplied level/spread board.
+## The four stages — 16 levels
 
-## Modes
+**Stage 1 · Integer foundation**
+| | |
+|---|---|
+| 1A | 2-digit − 1-digit — `83 − 7` |
+| 1B | 2-digit − 2-digit, no borrowing — `74 − 32` |
+| 1C | 2-digit − 2-digit, borrowing — `91 − 46` |
+| 1D | 3-digit − 1-digit — `157 − 8` |
+| 1E | 3-digit − 2-digit — `183 − 47` |
 
-Easy:
-- rounded board-like values
-- clean 2XX +/- two-digit
-- no fractions
+**Stage 2 · Harder integer**
+| | |
+|---|---|
+| 2A | 3-digit − 2-digit, borrowing across hundreds — `391 − 76` |
+| 2B | 3-digit − 2-digit, cascade borrowing — `603 − 87` |
+| 2C | 3-digit − 3-digit — `704 − 268` |
+| 2D | 3-digit − 3-digit, multiple borrowing — `915 − 478` |
 
-Medium:
-- exact eighth decimals
-- one level-like number +/- one spread-like number
+**Stage 3 · Fraction-only** (retrieval speed, not fraction knowledge)
+| | |
+|---|---|
+| 3A | eighths, quarters, halves — `5/8 − 1/8` |
+| 3B | negative differences — `1/8 − 7/8` |
+| 3C | sixteenths — `11/16 − 3/8` · unlocked by mastering 3A **and** 3B |
 
-Hard:
-- exact eighth decimals
-- two-step add/subtract
+**Stage 4 · Mixed** — the desk skill
+| | |
+|---|---|
+| 4A | easy integration — `274 3/4 − 58 3/8` |
+| 4B | fractional borrowing — `187 1/4 − 17 1/2` |
+| 4C | hard integer + fractional borrowing |
+| 4D | desk simulation — everything, sixteenths included |
 
-Mixed:
-- random Easy / Medium / Hard
+## How it adapts
 
-## Install on GitHub Pages
+Every answer records the level, the pattern, whether borrowing was required, the
+response time and whether it was correct. Question selection is then weighted
+toward the patterns you are slow or wrong on, with a floor so nothing is starved.
 
-Upload these files directly to the repository root:
-- index.html
-- app.js
-- styles.css
-- manifest.webmanifest
-- sw.js
-- icon-192.png
-- icon-512.png
+Promotion is gated on **accuracy first, then speed** — never by simply shortening
+a timer:
 
-Then Settings -> Pages -> Deploy from branch -> main -> /root.
-Open the Pages URL in Safari -> Share -> Add to Home Screen.
+- judged on **recent** performance, so early mistakes don't hold back a learner who has improved
+- **median** response time, not average; long pauses are excluded and counted separately as outliers
+- tested once per fully-refreshed window with a Wilson lower bound, so a lucky run doesn't promote you
+- **fast but inaccurate** is detected and called out rather than silently blocking you
+- if a level turns out to be beyond you, the app steps you back down
+
+## Dashboard
+
+Today's questions, accuracy, median, average and best; medians split by integer /
+fractions / mixed; and the weakest pattern named in each category — for example
+*"3-digit − 2-digit borrowing across hundreds"* or *"fractional borrowing"*.
+
+## Answering
+
+Type the answer and press **Enter** or **GO**. Mixed numbers, decimals and bare
+fractions are all accepted: `135 7/8`, `135.875`, `7/8`, `-3/4`. Fraction keypads
+appear only on the levels where fractions can occur.
+
+## Files
+
+| | |
+|---|---|
+| `index.html` | markup |
+| `app.js` | DOM wiring and the drill loop |
+| `drill.js` | all pure logic — generators, statistics, adaptive selection, progression |
+| `fx.js` | audio feedback only |
+| `styles.css` | styles |
+| `sw.js` | service worker (network-first, so updates land immediately) |
+| `manifest.webmanifest`, `icon-*.png` | PWA install |
+
+`drill.js` has no DOM dependency and loads under Node, so the generators and the
+adaptive engine can be tested directly.
+
+## Install
+
+Settings → Pages → Deploy from branch → `main` → `/root`.
+Open the Pages URL in Safari → Share → Add to Home Screen.

@@ -1,10 +1,11 @@
-const CACHE_NAME = "pit-boss-v12";
+const CACHE_NAME = "drill-v1";
 const ASSETS = [
   "./",
   "./index.html",
   "./styles.css",
   "./app.js",
-  "./game.js",
+  "./fx.js",
+  "./drill.js",
   "./manifest.webmanifest",
   "./icon-192.png",
   "./icon-512.png"

@@ -6,8 +6,8 @@
   <meta name="theme-color" content="#05060a" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <meta name="apple-mobile-web-app-title" content="Pit Boss" />
-  <title>PIT BOSS — Trading Floor</title>
+  <meta name="apple-mobile-web-app-title" content="Drill" />
+  <title>SUBTRACTION DRILL</title>
   <link rel="manifest" href="manifest.webmanifest" />
   <link rel="apple-touch-icon" href="icon-192.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -16,214 +16,77 @@
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-  <canvas id="fxCanvas"></canvas>
-  <div id="flash"></div>
-  <div id="fxLayer"></div>
-  <div class="scanlines"></div>
-  <div class="ticker"><div id="tickerTrack" class="ticker-track"></div></div>
+  <main class="app">
 
-  <main class="game">
-    <header class="hud">
-      <div class="rank">
-        <div class="rank-badge" id="rankBadge">▲</div>
-        <div class="rank-meta">
-          <div class="rank-name" id="rank">RUNNER</div>
-          <div class="lvl-line">LVL <span id="level">1</span></div>
-        </div>
+    <!-- ── top bar: where you are, how you're doing right now ── -->
+    <header class="bar">
+      <div class="bar-l">
+        <div class="stage-tag" id="stageTag">STAGE 1 · INTEGER</div>
+        <div class="level-name" id="levelName">2-digit − 1-digit</div>
       </div>
-      <div class="cash-wrap">
-        <div class="cash-label">THE BOOK</div>
-        <div class="cash" id="cash">$0</div>
+      <div class="bar-r">
+        <div class="streak" id="streak">0</div>
+        <div class="streak-lbl">streak</div>
       </div>
     </header>
 
-    <div class="xpbar">
-      <div class="xpfill" id="xpBar"></div>
-      <span class="xptext" id="xpText">0 / 100 XP</span>
-    </div>
+    <div class="gatebar"><div class="gatefill" id="gateFill"></div><span class="gatetext" id="gateText">20 to go</span></div>
 
-    <div id="relicsBar" class="relics-bar"><span class="no-relics">no relics yet</span></div>
-
-    <div class="subhud">
-      <div class="lives" id="lives"></div>
-      <div class="combo" id="comboWrap">
-        <span class="combo-x" id="combo">x1</span>
-        <div class="combo-bar"><div class="combo-fill" id="comboFill"></div></div>
+    <!-- ── the drill ── -->
+    <section class="drill">
+      <div id="question" class="question">READY</div>
+      <div id="feedback" class="feedback">Press START</div>
+      <input id="answer" class="answer" inputmode="text" autocomplete="off"
+             autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="answer" />
+      <div id="fracPad" class="fracpad hidden">
+        <button data-f="1/8">⅛</button><button data-f="1/4">¼</button>
+        <button data-f="3/8">⅜</button><button data-f="1/2">½</button>
+        <button data-f="5/8">⅝</button><button data-f="3/4">¾</button>
+        <button data-f="7/8">⅞</button>
       </div>
-      <div class="timer-chip">⏱ <span id="timer">00:00</span></div>
-    </div>
-
-    <div class="modes">
-      <button class="mode active" data-mode="easy">EASY</button>
-      <button class="mode" data-mode="medium">MED</button>
-      <button class="mode" data-mode="hard">HARD</button>
-      <button class="mode" data-mode="mixed">MIX</button>
-      <button class="mode learn" data-mode="learn">📚 LEARN</button>
-    </div>
-    <div id="modeHint" class="mode-hint">10–300, fractions in ⅛. Gentle spread.</div>
-
-    <div id="conditionBanner" class="cond-banner hidden"></div>
-
-    <section class="stage">
-      <canvas id="chartCanvas"></canvas>
-      <canvas id="monsterCanvas"></canvas>
-      <div class="stage-inner">
-        <div id="countdown" class="countdown hidden">0</div>
-        <div id="bossPanel" class="boss-panel hidden">
-          <div class="boss-emoji" id="bossEmoji">📉</div>
-          <div class="boss-info">
-            <div class="boss-name" id="bossName">MARGIN CALL</div>
-            <div class="boss-hp"><div class="boss-hp-fill" id="bossHpFill"></div><span class="boss-hp-text" id="bossHpText">7 / 7</span></div>
-          </div>
-        </div>
-
-        <div class="floor-meta" id="floorMeta">FLOOR 1 · ORDER 1/5</div>
-
-        <div id="orderTimer" class="order-timer hidden"><div id="orderTimerBar" class="order-timer-bar"></div></div>
-
-        <div id="question" class="question">PRESS&nbsp;DEAL</div>
-        <div id="feedback" class="feedback">Fill the order. Answer like 92 5/8 or 92.625.</div>
-
-        <div class="input-wrap">
-          <input id="answerInput" inputmode="decimal" autocomplete="off" placeholder="your price" />
-        </div>
-
-      <div class="fraction-buttons">
-        <button data-frac=".125">⅛</button>
-        <button data-frac=".250">¼</button>
-        <button data-frac=".375">⅜</button>
-        <button data-frac=".500">½</button>
-        <button data-frac=".625">⅝</button>
-        <button data-frac=".750">¾</button>
-        <button data-frac=".875">⅞</button>
+      <div id="pad16" class="fracpad pad16 hidden">
+        <button data-f="1/16">1/16</button><button data-f="3/16">3/16</button>
+        <button data-f="5/16">5/16</button><button data-f="7/16">7/16</button>
+        <button data-f="9/16">9/16</button><button data-f="11/16">11/16</button>
+        <button data-f="13/16">13/16</button><button data-f="15/16">15/16</button>
       </div>
-      <div id="frac16" class="fraction-buttons frac16 hidden">
-        <button data-frac=".0625">1/16</button>
-        <button data-frac=".1875">3/16</button>
-        <button data-frac=".3125">5/16</button>
-        <button data-frac=".4375">7/16</button>
-        <button data-frac=".5625">9/16</button>
-        <button data-frac=".6875">11/16</button>
-        <button data-frac=".8125">13/16</button>
-        <button data-frac=".9375">15/16</button>
-      </div>
-
-        <div class="actions">
-          <button id="startBtn" class="primary">DEAL</button>
-          <button id="checkBtn">FILL</button>
-          <button id="skipBtn">PASS</button>
-        </div>
+      <div class="actions">
+        <button id="goBtn" class="primary">START</button>
+        <button id="skipBtn">SKIP</button>
       </div>
     </section>
 
-    <div class="tool-row">
-      <button id="soundBtn" class="tool" aria-label="sound">🔊</button>
-      <button id="settingsBtn" class="tool">⚙ SETTINGS</button>
-    </div>
-
-    <section class="panel">
-      <details open><summary>Progress · weak spots</summary>
-        <p id="weakHeadline" class="ws-headline">Play a few orders — insights unlock after 4 each.</p>
-        <div id="weakSpots" class="weak-spots"></div>
-        <p class="small-note">Longer bar = you struggle more (errors + time). Pick <b>📚 LEARN</b> to drill your worst.</p>
-        <button id="resetStatsBtn" class="ws-reset">Reset stats</button>
-      </details>
+    <!-- ── today, at a glance ── -->
+    <section class="today">
+      <div class="t-cell"><span id="tQ">0</span><small>questions</small></div>
+      <div class="t-cell"><span id="tAcc">—</span><small>accuracy</small></div>
+      <div class="t-cell"><span id="tMed">—</span><small>median</small></div>
+      <div class="t-cell"><span id="tAvg">—</span><small>average</small></div>
+      <div class="t-cell"><span id="tBest">—</span><small>best</small></div>
     </section>
 
-    <section class="panel">
-      <details><summary>Trade blotter</summary>
-        <ul id="history" class="blotter"></ul>
-      </details>
-    </section>
+    <!-- ── everything below is out of the way while drilling ── -->
+    <details class="panel" id="dashPanel">
+      <summary>Performance</summary>
+      <div class="cat-rows" id="catRows"></div>
+      <div class="weak-rows" id="weakRows"></div>
+    </details>
 
-    <section class="panel">
-      <details><summary>Number pool</summary>
-        <p class="small-note">Reference prices (multiples of ⅛). Use “Price range” to bound questions.</p>
-        <div class="board-grid" id="boardGrid"></div>
-      </details>
-    </section>
+    <details class="panel">
+      <summary>Levels</summary>
+      <label class="check"><input id="autoLevel" type="checkbox" checked /> auto-advance when I'm ready</label>
+      <div class="ladder" id="ladder"></div>
+    </details>
 
-    <section class="panel">
-      <details id="customPoolDetails"><summary>Custom pool</summary>
-        <p class="small-note">Paste your own numbers (comma or newline). Multiples of ⅛ between 70–350.</p>
-        <label class="pool-label">Level numbers</label>
-        <textarea id="customLevels" rows="3" placeholder="e.g. 155.500, 167.875, 212.250"></textarea>
-        <label class="pool-label">Spread numbers</label>
-        <textarea id="customSpreads" rows="2" placeholder="e.g. 12.500, 25.750, 48.375"></textarea>
-        <div class="pool-actions">
-          <button id="loadPoolBtn" class="primary">Load</button>
-          <button id="resetPoolBtn">Reset</button>
-        </div>
-        <div id="poolStatus" class="small-note"></div>
-      </details>
-    </section>
-
-    <section class="panel">
-      <details id="rangeDetails"><summary>Price range</summary>
-        <p class="small-note">Lock the main price to a range — multiples of ⅛ between 70–350. Spreads stay the same.</p>
-        <div class="range-inputs">
-          <div>
-            <label class="pool-label">From</label>
-            <input id="rangeMinInput" inputmode="decimal" autocomplete="off" placeholder="e.g. 90 or 92.5" />
-          </div>
-          <div>
-            <label class="pool-label">To</label>
-            <input id="rangeMaxInput" inputmode="decimal" autocomplete="off" placeholder="e.g. 110 or 109.875" />
-          </div>
-        </div>
-        <div class="pool-actions">
-          <button id="setRangeBtn" class="primary">Set</button>
-          <button id="clearRangeBtn">Clear</button>
-        </div>
-        <div id="rangeStatus" class="small-note"></div>
-      </details>
-    </section>
-
-    <section id="settingsPanel" class="settings hidden">
-      <h2>Settings</h2>
-      <label class="check">
-        <input id="autoNext" type="checkbox" checked />
-        auto-deal next order after a fill
-      </label>
-      <button id="saveSettings" class="primary">Save</button>
-    </section>
+    <details class="panel">
+      <summary>Settings</summary>
+      <label class="check"><input id="soundChk" type="checkbox" checked /> sound</label>
+      <button id="resetBtn" class="danger">Reset all progress</button>
+    </details>
   </main>
 
-  <!-- Level-up flash -->
-  <div id="levelup" class="overlay-mini hidden">
-    <div class="lu-card">
-      <div class="lu-promo">PROMOTED</div>
-      <div class="lu-rank" id="luRank">CLERK</div>
-      <div class="lu-sub">Level <span id="luLevel">2</span> · +1 life</div>
-    </div>
-  </div>
-
-  <!-- Relic draft (between floors) -->
-  <div id="relicDraft" class="overlay hidden">
-    <div class="rd-wrap">
-      <div class="rd-cleared">✓ FLOOR <span id="rdFloor">1</span> CLEARED</div>
-      <div class="rd-pick" id="rdSub">PICK A RELIC</div>
-      <div class="rd-options" id="rdOptions"></div>
-      <div class="rd-hint">Your relic persists for the entire run.</div>
-    </div>
-  </div>
-
-  <!-- Game over -->
-  <div id="gameover" class="overlay hidden">
-    <div class="go-card">
-      <div class="go-title">FLOOR CLOSED</div>
-      <div class="go-rank" id="goRank">RUNNER</div>
-      <div class="go-stats">
-        <div><span id="goCash">$0</span><small>booked</small></div>
-        <div><span id="goFloor">1</span><small>floors</small></div>
-        <div><span id="goCombo">0</span><small>best combo</small></div>
-      </div>
-      <div class="go-best" id="goBest"></div>
-      <button id="restartBtn" class="primary big">BACK TO THE PIT</button>
-    </div>
-  </div>
-
-  <script src="game.js"></script>
+  <script src="fx.js"></script>
+  <script src="drill.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

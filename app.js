@@ -74,7 +74,6 @@ function submit() {
   inEl.disabled = true;
 
   Drill.record(S, cur, correct, ms, Date.now());
-  Drill.save(S);
 
   if (correct) {
     streak++;
@@ -86,7 +85,7 @@ function submit() {
     streak = 0;
     qEl.className = "question no";
     fbEl.className = "feedback bad";
-    fbEl.innerHTML = `${Drill.mixedHtml(cur.answer)} <span class="was">— you said ${raw}</span>`;
+    fbEl.innerHTML = `${Drill.mixedHtml(cur.answer)} <span class="was">— you said ${esc(raw)}</span>`;
     FX.sfx.wrong();
   }
   el("streak").textContent = streak;
@@ -94,6 +93,7 @@ function submit() {
   paintLevel();
   // Never let a promotion banner overwrite the correct answer the user still needs to read.
   maybeAdvanceLevel(correct);
+  Drill.save(S);   // after maybeAdvanceLevel: it consumes the promotion test via agg.since
 
   clearTimeout(advanceTimer);
   advanceTimer = setTimeout(nextQuestion, correct ? CORRECT_MS : WRONG_MS);
@@ -136,6 +136,7 @@ function start() {
 
 // ─── dashboard ────────────────────────────────────────────────────
 const secs = ms => ms ? (ms / 1000).toFixed(2) + "s" : "—";
+const esc = t => String(t).replace(/[&<>"]/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;" }[c]));
 
 function paintToday() {
   const s = Drill.summary(S);
@@ -218,7 +219,7 @@ el("resetBtn").addEventListener("click", () => {
 // ─── boot ─────────────────────────────────────────────────────────
 el("autoLevel").checked = S.auto !== false;
 el("soundChk").checked = FX.getSound();
-if (S.auto) S.level = Drill.nextLevel(S);
+if (S.auto) { S.level = Drill.nextLevel(S); Drill.save(S); }
 paintLevel(); paintToday(); paintLadder();
 
 if ("serviceWorker" in navigator) {

@@ -231,16 +231,6 @@ el("numpad").addEventListener("click", e => {
   if (!b || !running || locked) return;
   press(b.dataset.k);
 });
-el("numpad").addEventListener("click", e => {
-  const b = e.target.closest("button[data-k]");
-  if (!b || !running || inEl.disabled) return;
-  const k = b.dataset.k, v = inEl.value;
-  if (k === "del")      inEl.value = v.slice(0, -1);
-  else if (k === "clr") inEl.value = "";
-  else if (k === "neg") inEl.value = v.startsWith("-") ? v.slice(1) : "-" + v;
-  else                  inEl.value = v + k;
-  FX.sfx.click();
-});
 document.querySelectorAll(".fracpad button").forEach(b => {
   b.addEventListener("click", () => {
     if (!running || locked) return;

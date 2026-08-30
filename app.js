@@ -125,9 +125,11 @@ function maybeAdvanceLevel(announce) {
   paintLadder();
 }
 
+function setGoLabel() { el("goBtn").textContent = running ? "ANSWER !" : "START"; }
+
 function start() {
   running = true;
-  el("goBtn").textContent = "RESTART";
+  setGoLabel();
   FX.audio();
   streak = 0;
   el("streak").textContent = 0;
@@ -188,16 +190,27 @@ function paintLadder() {
 }
 
 // ─── wiring ───────────────────────────────────────────────────────
-el("goBtn").addEventListener("click", start);
+el("goBtn").addEventListener("click", () => { running ? submit() : start(); });
 el("skipBtn").addEventListener("click", skip);
 inEl.addEventListener("keydown", e => {
   if (e.key === "Enter") { e.preventDefault(); running ? submit() : start(); }
 });
+el("numpad").addEventListener("click", e => {
+  const b = e.target.closest("button[data-k]");
+  if (!b || !running || inEl.disabled) return;
+  const k = b.dataset.k, v = inEl.value;
+  if (k === "del")      inEl.value = v.slice(0, -1);
+  else if (k === "clr") inEl.value = "";
+  else if (k === "neg") inEl.value = v.startsWith("-") ? v.slice(1) : "-" + v;
+  else                  inEl.value = v + k;
+  FX.sfx.click();
+});
 document.querySelectorAll(".fracpad button").forEach(b => {
   b.addEventListener("click", () => {
+    if (!running || inEl.disabled) return;
     const v = inEl.value.trim();
     inEl.value = /\d$/.test(v) ? v + " " + b.dataset.f : v + b.dataset.f;
-    inEl.focus();
+    FX.sfx.click();
   });
 });
 el("autoLevel").addEventListener("change", e => {
@@ -209,7 +222,7 @@ el("resetBtn").addEventListener("click", () => {
   if (!confirm("Erase all drill history and progress?")) return;
   S = Drill.blank(); Drill.save(S);
   running = false; cur = null; streak = 0;
-  el("goBtn").textContent = "START";
+  setGoLabel();
   qEl.textContent = "READY"; qEl.className = "question";
   fbEl.textContent = "Press START"; fbEl.className = "feedback";
   el("streak").textContent = "0";

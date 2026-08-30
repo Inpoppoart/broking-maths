@@ -36,7 +36,7 @@
     <section class="drill">
       <div id="question" class="question">READY</div>
       <div id="feedback" class="feedback">Press START</div>
-      <input id="answer" class="answer" inputmode="text" autocomplete="off"
+      <input id="answer" class="answer" inputmode="none" autocomplete="off"
              autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="answer" />
       <div id="fracPad" class="fracpad hidden">
         <button data-f="1/8">⅛</button><button data-f="1/4">¼</button>
@@ -49,6 +49,15 @@
         <button data-f="5/16">5/16</button><button data-f="7/16">7/16</button>
         <button data-f="9/16">9/16</button><button data-f="11/16">11/16</button>
         <button data-f="13/16">13/16</button><button data-f="15/16">15/16</button>
+      </div>
+      <div id="numpad" class="numpad">
+        <button data-k="1">1</button><button data-k="2">2</button><button data-k="3">3</button>
+        <button data-k="del" class="util">⌫</button>
+        <button data-k="4">4</button><button data-k="5">5</button><button data-k="6">6</button>
+        <button data-k="clr" class="util">C</button>
+        <button data-k="7">7</button><button data-k="8">8</button><button data-k="9">9</button>
+        <button data-k="neg" class="util">−</button>
+        <button data-k="0" class="zero">0</button>
       </div>
       <div class="actions">
         <button id="goBtn" class="primary">START</button>

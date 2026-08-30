@@ -84,6 +84,7 @@ body {
   color: var(--green); outline: none; -webkit-appearance: none;
 }
 .answer:focus { border-color: var(--green); box-shadow: 0 0 16px rgba(57,255,139,0.25); }
+.answer { caret-color: var(--green); user-select: none; }
 .answer:disabled { opacity: 0.55; }
 .answer::placeholder { color: var(--muted); font-size: 0.95rem; font-weight: 500; }
 
@@ -96,18 +97,38 @@ body {
 }
 .fracpad.pad16 button { font-size: 0.6rem; color: var(--gold); border-color: rgba(255,210,63,0.35); }
 .fracpad button:active { background: var(--cyan); color: var(--bg); }
+.fracpad button { -webkit-tap-highlight-color: transparent; touch-action: manipulation; user-select: none; }
 
-.actions { display: flex; gap: 0.4rem; margin-top: 0.6rem; }
+/* ── numpad: big thumb targets, no native keyboard ── */
+.numpad {
+  display: grid; grid-template-columns: repeat(4, 1fr);
+  gap: 0.35rem; margin-top: 0.55rem;
+}
+.numpad button {
+  padding: 0.85rem 0; font-family: var(--mono);
+  font-size: 1.35rem; font-weight: 800; line-height: 1;
+  background: var(--panel2); border: 1px solid var(--border2); border-radius: 9px;
+  color: var(--text); cursor: pointer; -webkit-appearance: none;
+  -webkit-tap-highlight-color: transparent; touch-action: manipulation; user-select: none;
+}
+.numpad button:active { background: var(--cyan); color: var(--bg); border-color: var(--cyan); }
+.numpad .util { font-size: 1.05rem; color: var(--muted); background: var(--panel); }
+.numpad .util:active { background: var(--gold); color: var(--bg); border-color: var(--gold); }
+.numpad .zero { grid-column: 1 / -1; }
+
+.actions { display: flex; gap: 0.4rem; margin-top: 0.55rem; }
 .actions button {
   flex: 1; padding: 0.8rem 0; font-family: var(--pixel); font-size: 0.54rem;
   border-radius: 9px; border: 1.5px solid var(--border2);
   background: var(--panel2); color: var(--text); cursor: pointer;
 }
 .actions button.primary {
-  flex: 2; color: var(--bg); border-color: var(--green);
+  flex: 3; padding: 1.05rem 0; font-size: 0.72rem; letter-spacing: 0.06em;
+  color: var(--bg); border-color: var(--green);
   background: linear-gradient(180deg, #57ffa0, var(--green));
   box-shadow: 0 0 16px rgba(57,255,139,0.35);
 }
+.actions button.primary:active { filter: brightness(0.9); }
 
 /* ── today strip ── */
 .today { display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.3rem; margin-bottom: 0.5rem; }

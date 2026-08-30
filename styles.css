@@ -63,10 +63,12 @@ body {
   border: 1.5px solid var(--border2); border-radius: 14px;
   padding: 0.7rem 0.7rem 0.8rem; margin-bottom: 0.5rem;
 }
+/* Every box above the numpad has a FIXED height. If any of them grew with its
+   content the keys would move under your thumb mid-answer. */
 .question {
   text-align: center; font-family: var(--mono);
   font-size: 2.3rem; font-weight: 800; line-height: 1.1;
-  min-height: 3rem; display: flex; align-items: center; justify-content: center;
+  height: 3.5rem; display: flex; align-items: center; justify-content: center;
   color: #eaf2ff; letter-spacing: -0.01em;
 }
 .question.ok { color: var(--green); }
@@ -82,8 +84,8 @@ body {
 }
 .feedback {
   text-align: center; font-family: var(--mono); font-size: 0.9rem; font-weight: 700;
-  min-height: 1.55rem; display: flex; align-items: center; justify-content: center;
-  color: var(--muted); margin: 0.15rem 0 0.45rem;
+  height: 2rem; display: flex; align-items: center; justify-content: center;
+  color: var(--muted); margin: 0.1rem 0 0.35rem;
 }
 .feedback.good { color: var(--green); }
 .feedback.bad  { color: var(--red); font-size: 1.15rem; }
@@ -92,9 +94,9 @@ body {
 
 /* Not an <input>: a display. Nothing here can summon the iOS keyboard. */
 .answer {
-  width: 100%; padding: 0.62rem; min-height: 3.1rem;
+  width: 100%; padding: 0 0.7rem; height: 3.7rem; line-height: 1;
   display: flex; align-items: center; justify-content: center;
-  font-family: var(--mono); font-size: 1.4rem; font-weight: 800; text-align: center;
+  font-family: var(--mono); font-size: 1.6rem; font-weight: 800; text-align: center;
   background: #060a14; border: 2px solid var(--green); border-radius: 10px;
   color: var(--green); box-shadow: 0 0 16px rgba(57,255,139,0.18);
   -webkit-user-select: none; user-select: none;
@@ -102,7 +104,7 @@ body {
 }
 .answer.empty::before {
   content: attr(data-placeholder);
-  color: var(--muted); font-size: 0.95rem; font-weight: 500;
+  color: var(--muted); font-size: 0.95rem; font-weight: 500; line-height: 1;
 }
 
 .fracpad { display: grid; grid-template-columns: repeat(7, 1fr); gap: 0.22rem; margin-top: 0.4rem; }
@@ -122,7 +124,7 @@ body {
   gap: 0.3rem; margin-top: 0.45rem;
 }
 .numpad button {
-  padding: 0.72rem 0; min-height: 46px; font-family: var(--mono);
+  padding: 0.68rem 0; min-height: 45px; font-family: var(--mono);
   font-size: 1.3rem; font-weight: 800; line-height: 1;
   background: var(--panel2); border: 1px solid var(--border2); border-radius: 9px;
   color: var(--text); cursor: pointer; -webkit-appearance: none;

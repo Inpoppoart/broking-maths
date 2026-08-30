@@ -62,12 +62,15 @@ fractions / mixed; and the weakest pattern named in each category — for exampl
 
 ## Answering
 
-Tap it in on the on-screen numpad and hit **ANSWER !** — no typing. The native
-keyboard is suppressed, so the keys stay put and the layout never shifts.
+Tap it in on the on-screen numpad and hit **ANSWER !** — no typing. There is no
+text input on the page at all, so the iOS keyboard can never appear and the
+layout never shifts mid-drill.
 
 - `⌫` backspace, `C` clear, `−` toggles a negative (Stage 3B answers go negative)
-- fraction keys appear only on the levels where fractions occur — tap `135` then `⅞` for `135 7/8`
-- a physical keyboard still works: type and press **Enter**
+- the keypad adapts per level: digits on integer stages, fractions from stage 3,
+  and on fraction-only levels the digits collapse away since the answer is always a fraction
+- tap `135` then `⅞` for `135 7/8`
+- a physical keyboard still works — digits, `-`, `/`, `.`, Backspace, Escape and Enter
 
 Mixed numbers, decimals and bare fractions are all accepted: `135 7/8`,
 `135.875`, `7/8`, `-3/4`.

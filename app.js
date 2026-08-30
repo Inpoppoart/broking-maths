@@ -4,6 +4,16 @@
 const el = id => document.getElementById(id);
 const qEl = el("question"), fbEl = el("feedback"), inEl = el("answer");
 
+// The answer field is a plain div, not an <input>: on iOS no input element can be
+// focused without risking the keyboard or its accessory bar appearing. Entry comes
+// from the numpad, or from a physical keyboard via the document-level handler below.
+let entry = "", locked = false;
+function setEntry(v) {
+  entry = v;
+  inEl.textContent = v;
+  inEl.classList.toggle("empty", !v);
+}
+
 const CORRECT_MS = 260;    // just long enough to register "yes"
 const WRONG_MS   = 1900;   // long enough to actually read the right answer
 
@@ -31,11 +41,14 @@ function paintLevel() {
   el("gateFill").className = "gatefill" + (g.ok ? " ready" : g.fastButInaccurate ? " warn" : "");
   el("gateText").textContent = g.reason;
 
-  // fraction pads only where fractions can appear
+  // Show only the keys this level can actually need: digits on integer and mixed
+  // levels, fractions from stage 3 up. Stage 3 answers are pure fractions, so the
+  // digit keys are dead weight there and collapse to a single utility row.
   const needFrac = L.stage >= 3;
   const need16 = L.id === "3C" || L.id === "4D";
   el("fracPad").classList.toggle("hidden", !needFrac);
   el("pad16").classList.toggle("hidden", !need16);
+  el("numpad").classList.toggle("utils-only", L.stage === 3);
 }
 
 // ─── the loop ─────────────────────────────────────────────────────
@@ -49,9 +62,8 @@ function nextQuestion() {
   qEl.className = "question";
   fbEl.textContent = "";
   fbEl.className = "feedback";
-  inEl.value = "";
-  inEl.disabled = false;
-  inEl.focus();
+  setEntry("");
+  locked = false;
   // Clock starts once the question is actually painted, so we measure thinking
   // time rather than render time. Seed it synchronously so it can never be stale
   // from the previous question if the frame callbacks have not run yet.
@@ -63,15 +75,15 @@ function nextQuestion() {
 }
 
 function submit() {
-  if (!running || !cur || inEl.disabled) return;
-  const raw = inEl.value.trim();
+  if (!running || !cur || locked) return;
+  const raw = entry.trim();
   if (!raw) return;
   const val = Drill.parseAnswer(raw);
   if (val === null) { fbEl.textContent = "?"; fbEl.className = "feedback bad"; return; }
 
   const ms = performance.now() - askedAt;
   const correct = val === cur.answer;
-  inEl.disabled = true;
+  locked = true;
 
   Drill.record(S, cur, correct, ms, Date.now());
 
@@ -192,24 +204,38 @@ function paintLadder() {
 // ─── wiring ───────────────────────────────────────────────────────
 el("goBtn").addEventListener("click", () => { running ? submit() : start(); });
 el("skipBtn").addEventListener("click", skip);
-inEl.addEventListener("keydown", e => {
-  if (e.key === "Enter") { e.preventDefault(); running ? submit() : start(); }
+// Physical keyboards are handled at the document level so the answer field never
+// needs focus. Keys that belong to a real control are left alone.
+document.addEventListener("keydown", e => {
+  if (e.metaKey || e.ctrlKey || e.altKey) return;
+  const t = e.target, tag = t && t.tagName;
+  if (tag === "INPUT" || tag === "TEXTAREA" || tag === "BUTTON" || tag === "SUMMARY") return;
+  if (e.key === "Enter") { e.preventDefault(); running ? submit() : start(); return; }
+  if (!running || locked) return;
+  if (e.key === "Backspace")      { e.preventDefault(); press("del"); }
+  else if (e.key === "Escape")    { press("clr"); }
+  else if (e.key === "-")         { press("neg"); }
+  else if (/^[0-9]$/.test(e.key)) { press(e.key); }
+  else if (e.key === "/" || e.key === "." || e.key === " ") { e.preventDefault(); press(e.key); }
 });
+function press(k) {
+  if (k === "del")      setEntry(entry.slice(0, -1));
+  else if (k === "clr") setEntry("");
+  else if (k === "neg") setEntry(entry.startsWith("-") ? entry.slice(1) : "-" + entry);
+  else                  setEntry(entry + k);
+  FX.sfx.click();
+}
+
 el("numpad").addEventListener("click", e => {
   const b = e.target.closest("button[data-k]");
-  if (!b || !running || inEl.disabled) return;
-  const k = b.dataset.k, v = inEl.value;
-  if (k === "del")      inEl.value = v.slice(0, -1);
-  else if (k === "clr") inEl.value = "";
-  else if (k === "neg") inEl.value = v.startsWith("-") ? v.slice(1) : "-" + v;
-  else                  inEl.value = v + k;
-  FX.sfx.click();
+  if (!b || !running || locked) return;
+  press(b.dataset.k);
 });
 document.querySelectorAll(".fracpad button").forEach(b => {
   b.addEventListener("click", () => {
-    if (!running || inEl.disabled) return;
-    const v = inEl.value.trim();
-    inEl.value = /\d$/.test(v) ? v + " " + b.dataset.f : v + b.dataset.f;
+    if (!running || locked) return;
+    const v = entry.trim();
+    setEntry(/\d$/.test(v) ? v + " " + b.dataset.f : v + b.dataset.f);
     FX.sfx.click();
   });
 });
@@ -224,6 +250,7 @@ el("resetBtn").addEventListener("click", () => {
   running = false; cur = null; streak = 0;
   setGoLabel();
   qEl.textContent = "READY"; qEl.className = "question";
+  setEntry("");
   fbEl.textContent = "Press START"; fbEl.className = "feedback";
   el("streak").textContent = "0";
   paintLevel(); paintToday(); paintLadder();

@@ -61,6 +61,8 @@ const Drill = (() => {
   }
 
   // ─── generators ─────────────────────────────────────────────────
+  // Hard ceiling on every operand and every answer.
+  const MAX = 300, MAX_H = 2;   // 3-digit values stay in 100..299
   function ri(rng, lo, hi) { return lo + Math.floor(rng() * (hi - lo + 1)); }
   function pick(rng, arr) { return arr[ri(rng, 0, arr.length - 1)]; }
 
@@ -77,7 +79,7 @@ const Drill = (() => {
           a = need(1, 9) * 10 + u;
         } else {
           const t = borrow === 'cascade' ? 0 : borrow === 'units' ? need(1, 9) : need(0, 9);
-          a = need(1, 9) * 100 + t * 10 + u;
+          a = need(1, MAX_H) * 100 + t * 10 + u;
         }
         b = bu;
       } else if (bDigits === 2) {
@@ -88,7 +90,7 @@ const Drill = (() => {
         else if (borrow === 'units') { t = need(1, 9); bt = need(1, t); if (t - 1 < bt) continue; }
         else if (borrow === 'cascade') { t = 0; bt = need(1, 9); }
         else { t = need(1, 8); bt = need(t + 1, 9); }
-        const h = aDigits === 3 ? need(1, 9) : 0;
+        const h = aDigits === 3 ? need(1, MAX_H) : 0;
         a = h * 100 + t * 10 + u;
         b = bt * 10 + bu;
       } else {
@@ -99,14 +101,16 @@ const Drill = (() => {
         else if (borrow === 'units') { t = need(1, 9); bt = need(0, t - 1); }
         else if (borrow === 'cascade') { t = 0; bt = need(1, 9); }
         else { t = need(0, 8); bt = need(t + 1, 9); }
-        const bh = need(1, 8);
-        const hMin = bh + ((t - (borrow === 'none' ? 0 : 1)) < bt ? 1 : 0);
-        if (hMin > 9) continue;
-        const h = need(hMin, 9);
+        const hundredsBorrow = (t - (borrow === 'none' ? 0 : 1)) < bt;
+        const bh = need(1, hundredsBorrow ? MAX_H - 1 : MAX_H);
+        const hMin = bh + (hundredsBorrow ? 1 : 0);
+        if (hMin > MAX_H) continue;
+        const h = need(hMin, MAX_H);
         a = h * 100 + t * 10 + u;
         b = bh * 100 + bt * 10 + bu;
       }
       if (b <= 0 || a - b <= 0) continue;
+      if (a > MAX || b > MAX) continue;
       if (String(a).length !== aDigits || String(b).length !== bDigits) continue;
       return { a, b, ans: a - b };
     }

@@ -5,6 +5,8 @@ see the calculation, recognise it, answer — rather than working through a long
 conscious chain of steps. It does not teach an alternative method; it drills the
 one you already use until it stops needing thought.
 
+Every operand and every answer stays between **10 and 300**.
+
 ## The four stages — 16 levels
 
 **Stage 1 · Integer foundation**
@@ -19,10 +21,10 @@ one you already use until it stops needing thought.
 **Stage 2 · Harder integer**
 | | |
 |---|---|
-| 2A | 3-digit − 2-digit, borrowing across hundreds — `391 − 76` |
-| 2B | 3-digit − 2-digit, cascade borrowing — `603 − 87` |
-| 2C | 3-digit − 3-digit — `704 − 268` |
-| 2D | 3-digit − 3-digit, multiple borrowing — `915 − 478` |
+| 2A | 3-digit − 2-digit, borrowing across hundreds — `231 − 45` |
+| 2B | 3-digit − 2-digit, cascade borrowing — `205 − 66` |
+| 2C | 3-digit − 3-digit — `287 − 206` |
+| 2D | 3-digit − 3-digit, multiple borrowing — `273 − 196` |
 
 **Stage 3 · Fraction-only** (retrieval speed, not fraction knowledge)
 | | |
@@ -85,10 +87,15 @@ Mixed numbers, decimals and bare fractions are all accepted: `135 7/8`,
 | `fx.js` | audio feedback only |
 | `styles.css` | styles |
 | `sw.js` | service worker (network-first, so updates land immediately) |
+| `test.js` | test suite for the engine — `node test.js` |
 | `manifest.webmanifest`, `icon-*.png` | PWA install |
 
 `drill.js` has no DOM dependency and loads under Node, so the generators and the
-adaptive engine can be tested directly.
+adaptive engine can be tested directly:
+
+```
+node test.js
+```
 
 ## Install
 

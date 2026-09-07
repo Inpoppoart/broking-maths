@@ -253,6 +253,16 @@ const Drill = (() => {
   }
 
   // ─── statistics ─────────────────────────────────────────────────
+  // Learning-design constants.
+  const TARGET_P    = 0.85;   // in-session success rate that maximises learning rate
+  const P_SIGMA     = 0.18;   // how sharply selection prefers items near TARGET_P
+  const CV_GATE     = 0.50;   // response-time consistency required for "automatic"
+  const REVIEW_SHARE     = 0.20;      // share of questions drawn from mastered levels
+  const INTERLEAVE_SHARE = 0.15;      // share mixed in from earlier levels regardless of due
+  const REVIEW_BASE_MS   = 8 * 60000; // first review interval after mastering
+  const REVIEW_MAX_STR   = 10;        // interval doubles per pass, up to ~5.7 days
+  const WARMUP_N         = 3;         // opening answers of a session: slow, not representative
+
   const OUTLIER_MS = 20000;               // hard ceiling: above this is not thinking time
   function median(arr) {
     if (!arr || !arr.length) return 0;
@@ -262,6 +272,16 @@ const Drill = (() => {
   function mean(arr) { return arr && arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : 0; }
   // Times used for medians exclude hard outliers; they are counted separately.
   function clean(times) { return (times || []).filter(t => t <= OUTLIER_MS); }
+  // Coefficient of variation. Automatic retrieval is CONSISTENT; effortful
+  // calculation is erratic, so spread separates the two better than the median does.
+  function cv(times) {
+    const a = clean(times);
+    if (a.length < 5) return 0;           // too little to judge — do not block on it
+    const m = mean(a);
+    if (!m) return 0;
+    const v = a.reduce((s, x) => s + (x - m) * (x - m), 0) / a.length;
+    return Math.sqrt(v) / m;
+  }
 
   // Decisions use recent performance, never lifetime: a learner who has improved
   // must not be held back by mistakes made hundreds of questions ago.
@@ -297,6 +317,18 @@ const Drill = (() => {
   }
 
   // ─── adaptive selection ─────────────────────────────────────────
+  // Prefer items whose predicted success sits near TARGET_P. Items you almost
+  // always get right teach little; items you almost always miss teach little too.
+  function difficultyFit(agg) {
+    if (!agg || recentN(agg) < 3) return 1;      // unknown difficulty — stay neutral
+    const p = recentAcc(agg);
+    // Asymmetric on purpose: too easy is worse than too hard. An item you always
+    // get right teaches nothing, whereas one you often miss still has headroom.
+    const sigma = p > TARGET_P ? P_SIGMA : P_SIGMA * 1.8;
+    const dz = (p - TARGET_P) / sigma;
+    return Math.exp(-0.5 * dz * dz);
+  }
+
   // Weight rises with weakness but never reaches zero, so nothing starves.
   const FLOOR = 0.15;
   function chooseItem(level, stats, rng, lastKey) {
@@ -305,7 +337,8 @@ const Drill = (() => {
     const meds = items.map(it => median(clean((stats[it.k] || {}).t))).filter(m => m > 0);
     const ref = meds.length ? median(meds) : 0;
     const weights = items.map(it => {
-      let w = FLOOR + weakness(stats[it.k], ref);
+      const agg = stats[it.k];
+      let w = FLOOR + (0.15 + weakness(agg, ref)) * difficultyFit(agg);
       if (it.k === lastKey) w *= 0.35;    // discourage immediate repeats
       return w;
     });
@@ -337,7 +370,13 @@ const Drill = (() => {
                             : `${(acc*100).toFixed(0)}% accurate — need ${ACC_GATE*100}%` };
     }
     if (!fast) return { ok: false, reason: `${(acc*100).toFixed(0)}% accurate — now get median under ${(level.target/1000).toFixed(1)}s (at ${(med/1000).toFixed(1)}s)` };
-    return { ok: true, reason: `${(acc*100).toFixed(0)}% at ${(med/1000).toFixed(1)}s — ready to advance` };
+    // Fast on average but erratic means you are still calculating, not recalling.
+    const spread = cv(agg.t);
+    if (spread > CV_GATE) {
+      return { ok: false, uneven: true,
+               reason: `${(med/1000).toFixed(1)}s but uneven — still working them out, not recalling` };
+    }
+    return { ok: true, reason: `${(acc*100).toFixed(0)}% at ${(med/1000).toFixed(1)}s, steady — ready to advance` };
   }
   function gateOpen(id, stats) {
     const l = levelById(id);
@@ -369,27 +408,41 @@ const Drill = (() => {
     const d = new Date(now);
     return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
   }
-  function bump(bucket, correct, ms, cap) {
+  function bump(bucket, correct, ms, cap, countTime) {
     bucket.n++; if (correct) bucket.c++;          // lifetime totals, for "how much have I done"
-    bucket.t.push(ms);
     bucket.r = bucket.r || [];
     bucket.r.push(correct ? 1 : 0);               // rolling window, for every DECISION
-    if (bucket.t.length > cap) bucket.t.splice(0, bucket.t.length - cap);
+    // Warm-up answers are slow but not less accurate, so their correctness counts
+    // and their timing does not.
+    if (countTime !== false) {
+      bucket.t.push(ms);
+      if (bucket.t.length > cap) bucket.t.splice(0, bucket.t.length - cap);
+    }
     if (bucket.r.length > cap) bucket.r.splice(0, bucket.r.length - cap);
   }
-  function record(s, q, correct, ms, now) {
+  function record(s, q, correct, ms, now, opts) {
+    opts = opts || {};
     ms = Math.max(0, Math.round(ms));
-    const dk = dayKey(now == null ? Date.now() : now);
+    const nowMs = now == null ? Date.now() : now;
+    const timed = !opts.warmup;
+    const dk = dayKey(nowMs);
     s.pat[q.key] = s.pat[q.key] || { n: 0, c: 0, t: [] };
     s.lvl[q.level] = s.lvl[q.level] || { n: 0, c: 0, t: [] };
     s.days[dk] = s.days[dk] || { n: 0, c: 0, t: [], best: 0, cat: {} };
     const day = s.days[dk];
     day.cat[q.cat] = day.cat[q.cat] || { n: 0, c: 0, t: [] };
-    bump(s.pat[q.key], correct, ms, CAP_PAT);
-    bump(s.lvl[q.level], correct, ms, CAP_LVL);
-    s.lvl[q.level].since = (s.lvl[q.level].since || 0) + 1;
-    bump(day, correct, ms, CAP_DAY);
-    bump(day.cat[q.cat], correct, ms, CAP_DAY);
+    bump(s.pat[q.key], correct, ms, CAP_PAT, timed);
+    bump(s.lvl[q.level], correct, ms, CAP_LVL, timed);
+    const lv = s.lvl[q.level];
+    lv.since = (lv.since || 0) + 1;
+    // Interleaved questions are background variety, not a scheduled review: if they
+    // reset the clock the expanding intervals never get a chance to run.
+    if (opts.mode !== "interleave") lv.seen = nowMs;
+    if (opts.mode === "review") {                        // expanding interval on success
+      lv.str = correct ? Math.min((lv.str || 0) + 1, REVIEW_MAX_STR) : Math.max(0, (lv.str || 0) - 1);
+    }
+    bump(day, correct, ms, CAP_DAY, timed);
+    bump(day.cat[q.cat], correct, ms, CAP_DAY, timed);
     if (correct && ms <= OUTLIER_MS && (!day.best || ms < day.best)) day.best = ms;
     const keys = Object.keys(s.days).sort();
     while (keys.length > KEEP_DAYS) delete s.days[keys.shift()];
@@ -434,6 +487,39 @@ const Drill = (() => {
     };
   }
 
+  // ─── spaced review + interleaving ───────────────────────────────
+  // Levels you have already worked through. Kept in the pool even if a bad review
+  // has knocked them below the gate, otherwise a lapse would stop you revisiting it.
+  function reviewPool(s) {
+    const i = levelIndex(s.level);
+    return LEVELS.slice(0, Math.max(0, i)).map(L => L.id).filter(id => recentN(s.lvl[id]) >= 5);
+  }
+  function reviewInterval(str) { return REVIEW_BASE_MS * Math.pow(2, Math.min(str || 0, REVIEW_MAX_STR)); }
+  function reviewUrgency(s, id, now) {
+    const a = s.lvl[id];
+    if (!a) return 0;
+    return (now - (a.seen || 0)) / reviewInterval(a.str);
+  }
+  // Where the next question comes from: due review, interleaved earlier work, or
+  // the level you are actually training.
+  function chooseSource(s, now, rng) {
+    const pool = reviewPool(s);
+    if (!pool.length) return { id: s.level, mode: "current" };
+    const r = rng();
+    if (r < REVIEW_SHARE) {
+      const due = pool.filter(id => reviewUrgency(s, id, now) >= 1)
+                      .sort((a, b) => reviewUrgency(s, b, now) - reviewUrgency(s, a, now));
+      if (due.length) return { id: due[Math.floor(rng() * Math.min(due.length, 3))], mode: "review" };
+      // Nothing is actually due — spend the budget on the growth edge rather than
+      // padding the session with material that does not need revisiting.
+      return { id: s.level, mode: "current" };
+    }
+    if (r < REVIEW_SHARE + INTERLEAVE_SHARE) {
+      return { id: pool[Math.floor(rng() * pool.length)], mode: "interleave" };
+    }
+    return { id: s.level, mode: "current" };
+  }
+
   // Adaptive level pick: stay put until the gate opens, then step up.
   function nextLevel(s) {
     const i = levelIndex(s.level);
@@ -464,8 +550,10 @@ const Drill = (() => {
   return { U, gcd, fracText, fracParts, mixedText, mixedHtml, parseAnswer,
            ri, pick, genInt, borrowShape, genMixed, spaceFor, SPACE, EIGHTHS, SIXTEENTHS,
            LEVELS, STAGES, levelById, levelIndex, itemsFor, buildQuestion, patternName, catOf,
-           median, mean, clean, weakness, chooseItem, gate, gateOpen, recentAcc, recentN,
+           median, mean, clean, cv, weakness, difficultyFit, chooseItem, gate, gateOpen, recentAcc, recentN,
+           chooseSource, reviewPool, reviewUrgency, reviewInterval,
            blank, load, save, record, summary, dayKey, nextLevel, weakestIn, wilsonLower,
-           OUTLIER_MS, MIN_N, ACC_GATE, TEST_EVERY, DEMOTE_ACC, KEY };
+           OUTLIER_MS, MIN_N, ACC_GATE, TEST_EVERY, DEMOTE_ACC, KEY,
+           TARGET_P, CV_GATE, REVIEW_SHARE, INTERLEAVE_SHARE, WARMUP_N };
 })();
 if (typeof module !== "undefined" && module.exports) module.exports = Drill;

@@ -23,6 +23,7 @@ let askedAt = 0;           // performance.now() when the question became readabl
 let running = false;
 let streak = 0;
 let advanceTimer = 0;
+let answeredThisSession = 0;   // first few answers of a session are slow, not weak
 const rng = Math.random;
 
 // ─── level display ────────────────────────────────────────────────
@@ -53,11 +54,15 @@ function paintLevel() {
 
 // ─── the loop ─────────────────────────────────────────────────────
 function nextQuestion() {
-  const L = curLevel();
+  // The question may come from an earlier level: spaced review, or interleaving.
+  const src = Drill.chooseSource(S, Date.now(), rng);
+  const L = Drill.levelById(src.id) || curLevel();
   const item = Drill.chooseItem(L, S.pat, rng, cur && cur.key);
   let q = Drill.buildQuestion(L, item, rng);
   if (!q) q = Drill.buildQuestion(L, Drill.itemsFor(L)[0], rng);
+  q.src = src.mode;
   cur = q;
+  paintSrc(src.mode, L);
   qEl.innerHTML = q.html;
   qEl.className = "question";
   fbEl.textContent = "";
@@ -85,7 +90,11 @@ function submit() {
   const correct = val === cur.answer;
   locked = true;
 
-  Drill.record(S, cur, correct, ms, Date.now());
+  answeredThisSession++;
+  Drill.record(S, cur, correct, ms, Date.now(), {
+    warmup: answeredThisSession <= Drill.WARMUP_N,
+    mode: cur.src,
+  });
 
   if (correct) {
     streak++;
@@ -104,7 +113,7 @@ function submit() {
   paintToday();
   paintLevel();
   // Never let a promotion banner overwrite the correct answer the user still needs to read.
-  maybeAdvanceLevel(correct);
+  if (cur.src === "current") maybeAdvanceLevel(correct);
   Drill.save(S);   // after maybeAdvanceLevel: it consumes the promotion test via agg.since
 
   clearTimeout(advanceTimer);
@@ -139,8 +148,16 @@ function maybeAdvanceLevel(announce) {
 
 function setGoLabel() { el("goBtn").textContent = running ? "ANSWER !" : "START"; }
 
+function paintSrc(mode, L) {
+  const tag = el("srcTag");
+  if (mode === "current") { tag.classList.add("hidden"); return; }
+  tag.textContent = (mode === "review" ? "REVIEW · " : "MIXED IN · ") + L.name;
+  tag.className = "src-tag " + mode;
+}
+
 function start() {
   running = true;
+  answeredThisSession = 0;
   setGoLabel();
   FX.audio();
   streak = 0;
@@ -251,6 +268,7 @@ el("resetBtn").addEventListener("click", () => {
   setGoLabel();
   qEl.textContent = "READY"; qEl.className = "question";
   setEntry("");
+  el("srcTag").classList.add("hidden");
   fbEl.textContent = "Press START"; fbEl.className = "feedback";
   el("streak").textContent = "0";
   paintLevel(); paintToday(); paintLadder();

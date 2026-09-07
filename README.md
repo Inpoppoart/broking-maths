@@ -44,14 +44,38 @@ Every operand and every answer stays between **10 and 300**.
 ## How it adapts
 
 Every answer records the level, the pattern, whether borrowing was required, the
-response time and whether it was correct. Question selection is then weighted
-toward the patterns you are slow or wrong on, with a floor so nothing is starved.
+response time and whether it was correct.
+
+**Not every question comes from the level you are on.** Roughly:
+
+| | |
+|---|---|
+| ~65–85% | the level you are training |
+| ~15% | earlier levels, interleaved |
+| up to 20% | earlier levels that are *due*, on an expanding schedule |
+
+Blocked practice — drilling one pattern at a time until it sticks — produces
+faster gains in the session and worse retention than interleaving. And material
+you never revisit decays. So mastered levels keep reappearing: first a few
+minutes later, then twice as far out after each clean pass, up to several days.
+A missed review pulls the interval back in. Review questions are labelled, so a
+sudden easy one is not mistaken for the app regressing.
+
+Within a level, selection is weighted toward the patterns you are slow or wrong
+on, with a floor so nothing is starved — but also toward items you get right
+**about 85%** of the time. Something you always get right teaches nothing;
+something you usually miss teaches little either. The curve is deliberately
+asymmetric, since too easy is the worse failure of the two.
 
 Promotion is gated on **accuracy first, then speed** — never by simply shortening
 a timer:
 
 - judged on **recent** performance, so early mistakes don't hold back a learner who has improved
 - **median** response time, not average; long pauses are excluded and counted separately as outliers
+- **consistency** as well as speed: automatic recall is steady, effortful calculation is erratic, so
+  a fast-but-uneven median does not count as automatic
+- the first few answers of a session are slow but not less accurate, so their
+  correctness counts and their timing does not
 - tested once per fully-refreshed window with a Wilson lower bound, so a lucky run doesn't promote you
 - **fast but inaccurate** is detected and called out rather than silently blocking you
 - if a level turns out to be beyond you, the app steps you back down

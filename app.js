@@ -1,4 +1,4 @@
-// SUBTRACTION DRILL — DOM wiring for the fast loop.
+// PRICE DRILL — DOM wiring for the fast loop.
 // QUESTION -> ANSWER -> IMMEDIATE FEEDBACK -> NEXT QUESTION. Nothing else in the path.
 
 const el = id => document.getElementById(id);
@@ -42,14 +42,7 @@ function paintLevel() {
   el("gateFill").className = "gatefill" + (g.ok ? " ready" : g.fastButInaccurate ? " warn" : "");
   el("gateText").textContent = g.reason;
 
-  // Show only the keys this level can actually need: digits on integer and mixed
-  // levels, fractions from stage 3 up. Stage 3 answers are pure fractions, so the
-  // digit keys are dead weight there and collapse to a single utility row.
-  const needFrac = L.stage >= 3;
-  const need16 = L.id === "3C" || L.id === "4D";
-  el("fracPad").classList.toggle("hidden", !needFrac);
-  el("pad16").classList.toggle("hidden", !need16);
-  el("numpad").classList.toggle("utils-only", L.stage === 3);
+  // Every question is a price with an eighth, so both keypads are always needed.
 }
 
 // ─── the loop ─────────────────────────────────────────────────────
@@ -177,7 +170,7 @@ function paintToday() {
   el("tAvg").textContent = secs(s.today.mean);
   el("tBest").textContent = secs(s.today.best);
 
-  const CATS = [["int", "INTEGER"], ["frac", "FRACTIONS"], ["mixed", "MIXED"]];
+  const CATS = [["sub", "MINUS"], ["add", "PLUS"]];
   el("catRows").innerHTML = CATS.map(([k, label]) => {
     const c = s.cats[k];
     return `<div class="cat-row"><span class="cr-k">${label}</span>` +
@@ -187,7 +180,7 @@ function paintToday() {
 
   el("weakRows").innerHTML = CATS.map(([k, label]) => {
     const w = s.weakest[k];
-    return `<div class="weak-row"><span class="wk-k">Weakest ${label.toLowerCase()}</span>` +
+    return `<div class="weak-row"><span class="wk-k">Weakest ${label.toLowerCase()} pattern</span>` +
       (w ? `<span class="wk-n">${w.name}</span><span class="wk-s">${(w.acc*100).toFixed(0)}% · ${secs(w.med)} · n${w.n}</span>`
          : `<span class="wk-n dim">not enough data yet</span>`) + `</div>`;
   }).join("");

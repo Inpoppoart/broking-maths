@@ -60,197 +60,97 @@ const Drill = (() => {
     return neg ? -v : v;
   }
 
-  // ─── generators ─────────────────────────────────────────────────
-  // Hard ceiling on every operand and every answer.
-  const MAX = 300, MAX_H = 2;   // 3-digit values stay in 100..299
+  // ─── generator ──────────────────────────────────────────────────
+  // One question shape: a 2-digit price with an eighth, plus or minus another
+  // price with an eighth. Everything is built to guarantee its carry/borrow
+  // structure rather than sampled and hoped for.
   function ri(rng, lo, hi) { return lo + Math.floor(rng() * (hi - lo + 1)); }
   function pick(rng, arr) { return arr[ri(rng, 0, arr.length - 1)]; }
 
-  // Digits are chosen directly so the borrow structure is guaranteed.
-  function genInt({ aDigits, bDigits, borrow, rng }) {
-    const need = (lo, hi) => ri(rng, lo, hi);
-    for (let attempt = 0; attempt < 200; attempt++) {
-      let a, b;
-      if (bDigits === 1) {
-        const u  = borrow === 'none' ? need(1, 9) : need(0, 8);
-        const bu = borrow === 'none' ? need(1, u) : need(u + 1, 9);
-        if (aDigits === 2) {
-          if (borrow === 'tens' || borrow === 'cascade') continue; // impossible
-          a = need(1, 9) * 10 + u;
-        } else {
-          const t = borrow === 'cascade' ? 0 : borrow === 'units' ? need(1, 9) : need(0, 9);
-          a = need(1, MAX_H) * 100 + t * 10 + u;
-        }
-        b = bu;
-      } else if (bDigits === 2) {
-        const u  = borrow === 'none' ? need(1, 9) : need(0, 8);
-        const bu = borrow === 'none' ? need(0, u) : need(u + 1, 9);
-        let t, bt;
-        if (borrow === 'none') { t = need(1, 9); bt = need(1, t); }
-        else if (borrow === 'units') { t = need(1, 9); bt = need(1, t); if (t - 1 < bt) continue; }
-        else if (borrow === 'cascade') { t = 0; bt = need(1, 9); }
-        else { t = need(1, 8); bt = need(t + 1, 9); }
-        const h = aDigits === 3 ? need(1, MAX_H) : 0;
-        a = h * 100 + t * 10 + u;
-        b = bt * 10 + bu;
+  const EIGHTHS = [2, 4, 6, 8, 10, 12, 14];   // 1/8 .. 7/8, never a whole number
+
+  // fracCarry — the eighths column must (or must not) carry into the whole
+  // intCarry  — the whole column must (or must not) carry across tens; null = either
+  function genPrice({ bDigits, op, fracCarry, intCarry, rng }) {
+    const loB = bDigits === 1 ? 1 : 10;
+    const hiB = bDigits === 1 ? 9 : 99;
+    for (let t = 0; t < 400; t++) {
+      const fa = pick(rng, EIGHTHS), fb = pick(rng, EIGHTHS);
+      const fc = op === '-' ? fa < fb : (fa + fb) >= U;
+      if (fc !== fracCarry) continue;
+
+      const wb = ri(rng, loB, hiB);
+      const wa = ri(rng, 10, 99);
+      let ic;
+      if (op === '-') {
+        const eff = wa - (fc ? 1 : 0);          // the fraction borrow comes off first
+        if (eff <= wb) continue;                // keep the answer positive
+        ic = (eff % 10) < (wb % 10);
       } else {
-        const u  = borrow === 'none' ? need(1, 9) : need(0, 8);
-        const bu = borrow === 'none' ? need(0, u) : need(u + 1, 9);
-        let t, bt;
-        if (borrow === 'none') { t = need(1, 9); bt = need(0, t); }
-        else if (borrow === 'units') { t = need(1, 9); bt = need(0, t - 1); }
-        else if (borrow === 'cascade') { t = 0; bt = need(1, 9); }
-        else { t = need(0, 8); bt = need(t + 1, 9); }
-        const hundredsBorrow = (t - (borrow === 'none' ? 0 : 1)) < bt;
-        const bh = need(1, hundredsBorrow ? MAX_H - 1 : MAX_H);
-        const hMin = bh + (hundredsBorrow ? 1 : 0);
-        if (hMin > MAX_H) continue;
-        const h = need(hMin, MAX_H);
-        a = h * 100 + t * 10 + u;
-        b = bh * 100 + bt * 10 + bu;
+        ic = (wa % 10) + (wb % 10) + (fc ? 1 : 0) >= 10;
+        if (wa + wb + (fc ? 1 : 0) > 199) continue;
       }
-      if (b <= 0 || a - b <= 0) continue;
-      if (a > MAX || b > MAX) continue;
-      if (String(a).length !== aDigits || String(b).length !== bDigits) continue;
-      return { a, b, ans: a - b };
+      if (intCarry !== null && ic !== intCarry) continue;
+
+      const a = wa * U + fa, b = wb * U + fb;
+      const ans = op === '-' ? a - b : a + b;
+      if (ans <= 0) continue;
+      return { a, b, op, ans, fracCarry: fc, intCarry: ic };
     }
     return null;
   }
 
-  function borrowShape(a, b) {
-    const au = a % 10, at = Math.floor(a / 10) % 10;
-    const bu = b % 10, bt = Math.floor(b / 10) % 10;
-    const uB = au < bu;
-    const tB = (at - (uB ? 1 : 0)) < bt;
-    return { unitsBorrow: uB, tensBorrow: tB, cascade: uB && at === 0 && tB };
-  }
-
-  const EIGHTHS = [2, 4, 6, 8, 10, 12, 14];
-  const SIXTEENTHS = [1, 3, 5, 7, 9, 11, 13, 15];
-  function spaceFor(level) {
-    const out = [];
-    if (level === '3A' || level === '3B') {
-      for (const a of EIGHTHS) for (const b of EIGHTHS) {
-        if (a === b) continue;
-        if (level === '3A' && a > b) out.push([a, b]);
-        if (level === '3B' && a < b) out.push([a, b]);
-      }
-    } else {
-      const all = EIGHTHS.concat(SIXTEENTHS);
-      for (const a of all) for (const b of all) {
-        if (a === b) continue;
-        if (a % 2 === 0 && b % 2 === 0) continue;
-        out.push([a, b]);
-      }
-    }
-    return out;
-  }
-  const SPACE = { '3A': spaceFor('3A'), '3B': spaceFor('3B'), '3C': spaceFor('3C') };
-
-  function genMixed({ rng, intSpec, fracBorrow, allowSixteenths }) {
-    const pool = allowSixteenths ? EIGHTHS.concat(SIXTEENTHS) : EIGHTHS.slice();
-    let fa = 0, fb = 0;
-    for (let i = 0; i < 200; i++) {
-      fa = pick(rng, pool.concat([0]));
-      fb = pick(rng, pool);
-      if (fracBorrow ? fa < fb : fa >= fb) break;
-    }
-    if (fracBorrow && !(fa < fb)) { fa = 0; fb = pick(rng, pool); }
-    if (!fracBorrow && !(fa >= fb)) { fb = 0; }
-    const iq = genInt({ ...intSpec, rng });
-    if (!iq) return null;
-    return { a: iq.a * U + fa, b: iq.b * U + fb, ans: iq.a * U + fa - (iq.b * U + fb), fa, fb, ia: iq.a, ib: iq.b };
-  }
-
-
   // ─── level ladder ───────────────────────────────────────────────
-  const iv = (k, aDigits, bDigits, borrow) => ({ k, cat: 'int', spec: { aDigits, bDigits, borrow } });
-  const mv = (k, intSpec, fracBorrow, allowSixteenths) =>
-    ({ k, cat: 'mixed', mixed: { intSpec, fracBorrow, allowSixteenths } });
-
+  // Two families, split by whether the eighths carry and whether the whole
+  // numbers carry. Subtraction is weighted more heavily than addition.
+  const SUB_BIAS = 1.8;
+  function pair(id, shape, tag) {
+    return [
+      { k: `px.${shape}.sub.${tag}`, op: '-', bias: SUB_BIAS },
+      { k: `px.${shape}.add.${tag}`, op: '+', bias: 1 },
+    ];
+  }
   const LEVELS = [
-    { id:'1A', stage:1, name:'2-digit − 1-digit',        target:2600, items:[iv('int.2d1d.none',2,1,'none'), iv('int.2d1d.units',2,1,'units')] },
-    { id:'1B', stage:1, name:'2-digit − 2-digit, clean', target:2800, items:[iv('int.2d2d.none',2,2,'none')] },
-    { id:'1C', stage:1, name:'2-digit − 2-digit, borrow',target:3200, items:[iv('int.2d2d.units',2,2,'units')] },
-    { id:'1D', stage:1, name:'3-digit − 1-digit',        target:3000, items:[iv('int.3d1d.none',3,1,'none'), iv('int.3d1d.units',3,1,'units'), iv('int.3d1d.cascade',3,1,'cascade')] },
-    { id:'1E', stage:1, name:'3-digit − 2-digit',        target:3800, items:[iv('int.3d2d.none',3,2,'none'), iv('int.3d2d.units',3,2,'units')] },
-
-    { id:'2A', stage:2, name:'3-digit − 2-digit, borrow',   target:4200, items:[iv('int.3d2d.units',3,2,'units'), iv('int.3d2d.tens',3,2,'tens')] },
-    { id:'2B', stage:2, name:'3-digit − 2-digit, cascade',  target:4800, items:[iv('int.3d2d.cascade',3,2,'cascade')] },
-    { id:'2C', stage:2, name:'3-digit − 3-digit',           target:5200, items:[iv('int.3d3d.none',3,3,'none'), iv('int.3d3d.units',3,3,'units')] },
-    { id:'2D', stage:2, name:'3-digit − 3-digit, hard',     target:6000, items:[iv('int.3d3d.tens',3,3,'tens'), iv('int.3d3d.cascade',3,3,'cascade')] },
-
-    { id:'3A', stage:3, name:'Eighths, quarters, halves', target:1800, frac:'3A' },
-    { id:'3B', stage:3, name:'Negative differences',      target:2400, frac:'3B' },
-    { id:'3C', stage:3, name:'Sixteenths',                target:3000, frac:'3C', gate:['3A','3B'] },
-
-    { id:'4A', stage:4, name:'Mixed — easy integration',  target:5000, items:[mv('mix.easy',   {aDigits:3,bDigits:2,borrow:'none'},  false, false)] },
-    { id:'4B', stage:4, name:'Mixed — fractional borrow', target:6000, items:[mv('mix.fracborrow',{aDigits:3,bDigits:2,borrow:'none'}, true, false)] },
-    { id:'4C', stage:4, name:'Mixed — hard integer',      target:7000, items:[mv('mix.hardint.tens',{aDigits:3,bDigits:2,borrow:'tens'},true,false), mv('mix.hardint.cascade',{aDigits:3,bDigits:2,borrow:'cascade'},true,false)] },
-    { id:'4D', stage:4, name:'Desk simulation',           target:7500, items:[
-        mv('mix.desk.none',    {aDigits:3,bDigits:2,borrow:'none'},   false, false),
-        mv('mix.desk.units',   {aDigits:3,bDigits:2,borrow:'units'},  true,  false),
-        mv('mix.desk.tens',    {aDigits:3,bDigits:2,borrow:'tens'},   true,  false),
-        mv('mix.desk.cascade', {aDigits:3,bDigits:2,borrow:'cascade'},true,  false),
-        mv('mix.desk.16ths',   {aDigits:3,bDigits:2,borrow:'tens'},   true,  true)] },
+    { id:'A1', stage:1, name:'2-digit ± 1-digit, clean eighths', target:3500,
+      spec:{ bDigits:1, fracCarry:false, intCarry:null }, items: pair('A1','2d1d','clean') },
+    { id:'A2', stage:1, name:'2-digit ± 1-digit, eighths carry', target:4200,
+      spec:{ bDigits:1, fracCarry:true,  intCarry:null }, items: pair('A2','2d1d','carry') },
+    { id:'B1', stage:2, name:'2-digit ± 2-digit, clean eighths', target:4500,
+      spec:{ bDigits:2, fracCarry:false, intCarry:false }, items: pair('B1','2d2d','clean') },
+    { id:'B2', stage:2, name:'2-digit ± 2-digit, eighths carry', target:5500,
+      spec:{ bDigits:2, fracCarry:true,  intCarry:false }, items: pair('B2','2d2d','carry') },
+    { id:'B3', stage:2, name:'2-digit ± 2-digit, both carry',    target:6500,
+      spec:{ bDigits:2, fracCarry:true,  intCarry:true  }, items: pair('B3','2d2d','both') },
   ];
   const STAGES = [
-    { n:1, name:'INTEGER',        blurb:'Foundation subtraction' },
-    { n:2, name:'HARDER INTEGER', blurb:'Borrowing under pressure' },
-    { n:3, name:'FRACTIONS',      blurb:'Retrieval speed' },
-    { n:4, name:'MIXED',          blurb:'Desk simulation' },
+    { n:1, name:'2 ± 1 DIGIT', blurb:'Price against a small spread' },
+    { n:2, name:'2 ± 2 DIGIT', blurb:'Price against a price' },
   ];
   const levelById = id => LEVELS.find(l => l.id === id);
   const levelIndex = id => LEVELS.findIndex(l => l.id === id);
 
-  // Human labels for the dashboard's "weakest pattern" lines.
-  const SHAPE_NAME = { '2d1d':'2-digit − 1-digit', '2d2d':'2-digit − 2-digit',
-                       '3d1d':'3-digit − 1-digit', '3d2d':'3-digit − 2-digit', '3d3d':'3-digit − 3-digit' };
-  const BORROW_NAME = { none:'no borrowing', units:'with borrowing', tens:'borrowing across hundreds', cascade:'cascade borrowing' };
+  const SHAPE_NAME = { '2d1d': '2-digit ± 1-digit', '2d2d': '2-digit ± 2-digit' };
+  const TAG_NAME   = { clean: 'clean eighths', carry: 'eighths carry', both: 'eighths + tens carry' };
   function patternName(key) {
-    if (key.startsWith('int.')) {
-      const [, shape, borrow] = key.split('.');
-      return `${SHAPE_NAME[shape] || shape} ${BORROW_NAME[borrow] || borrow}`;
-    }
-    if (key.startsWith('frac.')) {
-      const [a, b] = key.slice(5).split('-').map(Number);
-      return `${fracText(a)} − ${fracText(b)}`;
-    }
-    if (key.startsWith('mix.')) {
-      if (key === 'mix.easy') return 'straightforward fractions';
-      if (key === 'mix.fracborrow') return 'fractional borrowing';
-      if (key.indexOf('16ths') >= 0) return 'sixteenths in mixed';
-      const b = key.split('.').pop();
-      return `fractional borrowing + ${BORROW_NAME[b] || b}`;
-    }
-    return key;
+    const p = key.split('.');           // px.<shape>.<op>.<tag>
+    if (p[0] !== 'px') return key;
+    return `${SHAPE_NAME[p[1]] || p[1]}, ${p[2] === 'sub' ? 'minus' : 'plus'}, ${TAG_NAME[p[3]] || p[3]}`;
   }
-  const catOf = key => key.startsWith('int.') ? 'int' : key.startsWith('frac.') ? 'frac' : 'mixed';
+  const catOf = key => key.split('.')[2] === 'add' ? 'add' : 'sub';
 
   // ─── question construction ──────────────────────────────────────
   function buildQuestion(level, item, rng) {
-    if (level.frac) {
-      const [fa, fb] = item.pair;
-      return { text: `${fracText(fa)} − ${fracText(fb)}`,
-               html: `${mixedHtml(fa)} <span class="op">−</span> ${mixedHtml(fb)}`,
-               answer: fa - fb, key: item.k, cat: 'frac', level: level.id };
-    }
-    if (item.cat === 'mixed') {
-      const q = genMixed({ rng, ...item.mixed });
-      if (!q) return null;
-      return { text: `${mixedText(q.a)} − ${mixedText(q.b)}`,
-               html: `${mixedHtml(q.a)} <span class="op">−</span> ${mixedHtml(q.b)}`,
-               answer: q.ans, key: item.k, cat: 'mixed', level: level.id, fracBorrow: q.fa < q.fb };
-    }
-    const q = genInt({ ...item.spec, rng });
+    const q = genPrice({ ...level.spec, op: item.op, rng });
     if (!q) return null;
-    return { text: `${q.a} − ${q.b}`, html: `${q.a} <span class="op">−</span> ${q.b}`,
-             answer: q.ans * U, key: item.k, cat: 'int', level: level.id };
+    const sign = q.op === '-' ? '−' : '+';
+    return {
+      text: `${mixedText(q.a)} ${sign} ${mixedText(q.b)}`,
+      html: `${mixedHtml(q.a)} <span class="op">${sign}</span> ${mixedHtml(q.b)}`,
+      answer: q.ans, key: item.k, cat: catOf(item.k), level: level.id,
+      op: q.op, fracCarry: q.fracCarry, intCarry: q.intCarry,
+    };
   }
-  function itemsFor(level) {
-    if (level.frac) return SPACE[level.frac].map(p => ({ k: `frac.${p[0]}-${p[1]}`, pair: p, cat: 'frac' }));
-    return level.items;
-  }
+  function itemsFor(level) { return level.items; }
 
   // ─── statistics ─────────────────────────────────────────────────
   // Learning-design constants.
@@ -338,7 +238,7 @@ const Drill = (() => {
     const ref = meds.length ? median(meds) : 0;
     const weights = items.map(it => {
       const agg = stats[it.k];
-      let w = FLOOR + (0.15 + weakness(agg, ref)) * difficultyFit(agg);
+      let w = (FLOOR + (0.15 + weakness(agg, ref)) * difficultyFit(agg)) * (it.bias || 1);
       if (it.k === lastKey) w *= 0.35;    // discourage immediate repeats
       return w;
     });
@@ -387,7 +287,7 @@ const Drill = (() => {
   // ─── persistence ────────────────────────────────────────────────
   const KEY = 'md_v1';
   const CAP_PAT = 30, CAP_LVL = 40, CAP_DAY = 300, KEEP_DAYS = 14;
-  function blank() { return { v: 1, level: '1A', auto: true, pat: {}, lvl: {}, days: {} }; }
+  function blank() { return { v: 1, level: LEVELS[0].id, auto: true, pat: {}, lvl: {}, days: {} }; }
   function load(storage) {
     const ls = storage || (typeof localStorage !== 'undefined' ? localStorage : null);
     if (!ls) return blank();
@@ -395,7 +295,11 @@ const Drill = (() => {
       const s = JSON.parse(ls.getItem(KEY));
       if (!s || s.v !== 1) return blank();
       s.pat = s.pat || {}; s.lvl = s.lvl || {}; s.days = s.days || {};
-      if (!levelById(s.level)) s.level = '1A';
+      // Saved progress from an older ladder: drop what no longer exists, so stale
+      // pattern keys cannot surface in the dashboard as a "weakest pattern".
+      if (!levelById(s.level)) s.level = LEVELS[0].id;
+      for (const k of Object.keys(s.pat)) if (k.indexOf('px.') !== 0) delete s.pat[k];
+      for (const k of Object.keys(s.lvl)) if (!levelById(k)) delete s.lvl[k];
       return s;
     } catch (e) { return blank(); }
   }
@@ -482,8 +386,8 @@ const Drill = (() => {
         median: median(t), mean: mean(t), best: day.best || 0,
         outliers: (day.t || []).length - t.length,
       },
-      cats: { int: catStat('int'), frac: catStat('frac'), mixed: catStat('mixed') },
-      weakest: { int: weakestIn(s, 'int'), frac: weakestIn(s, 'frac'), mixed: weakestIn(s, 'mixed') },
+      cats: { sub: catStat('sub'), add: catStat('add') },
+      weakest: { sub: weakestIn(s, 'sub'), add: weakestIn(s, 'add') },
     };
   }
 
@@ -548,7 +452,7 @@ const Drill = (() => {
   }
 
   return { U, gcd, fracText, fracParts, mixedText, mixedHtml, parseAnswer,
-           ri, pick, genInt, borrowShape, genMixed, spaceFor, SPACE, EIGHTHS, SIXTEENTHS,
+           ri, pick, genPrice, EIGHTHS,
            LEVELS, STAGES, levelById, levelIndex, itemsFor, buildQuestion, patternName, catOf,
            median, mean, clean, cv, weakness, difficultyFit, chooseItem, gate, gateOpen, recentAcc, recentN,
            chooseSource, reviewPool, reviewUrgency, reviewInterval,

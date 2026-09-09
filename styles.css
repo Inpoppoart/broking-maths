@@ -1,4 +1,4 @@
-/* ───────────────── SUBTRACTION DRILL ───────────────── */
+/* ───────────────── PRICE DRILL ───────────────── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 /* iOS: kill the grey tap flash and the 300ms double-tap-zoom delay everywhere.
    Pinch-zoom is deliberately left working. */
@@ -115,13 +115,11 @@ body {
 }
 
 .fracpad { display: grid; grid-template-columns: repeat(7, 1fr); gap: 0.22rem; margin-top: 0.4rem; }
-.fracpad.pad16 { grid-template-columns: repeat(8, 1fr); }
 .fracpad button {
   padding: 0.6rem 0; font-size: 1rem;
   background: var(--panel2); border: 1px solid var(--border2); border-radius: 7px;
   color: var(--cyan); cursor: pointer; -webkit-appearance: none;
 }
-.fracpad.pad16 button { font-size: 0.6rem; color: var(--gold); border-color: rgba(255,210,63,0.35); }
 .fracpad button:active { background: var(--cyan); color: var(--bg); }
 .fracpad button { -webkit-tap-highlight-color: transparent; touch-action: manipulation; user-select: none; }
 
@@ -141,9 +139,6 @@ body {
 .numpad .util { font-size: 1.05rem; color: var(--muted); background: var(--panel); }
 .numpad .util:active { background: var(--gold); color: var(--bg); border-color: var(--gold); }
 .numpad .zero { grid-column: 1 / -1; }
-/* fraction-only levels: drop the digits, keep backspace / clear / negative */
-.numpad.utils-only { grid-template-columns: repeat(3, 1fr); }
-.numpad.utils-only button:not(.util) { display: none; }
 
 .actions { display: flex; gap: 0.35rem; margin-top: 0.45rem; }
 .actions button {

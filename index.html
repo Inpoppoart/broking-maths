@@ -8,7 +8,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="Drill" />
-  <title>SUBTRACTION DRILL</title>
+  <title>PRICE DRILL</title>
   <link rel="manifest" href="manifest.webmanifest" />
   <link rel="apple-touch-icon" href="icon-192.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -22,8 +22,8 @@
     <!-- ── top bar: where you are, how you're doing right now ── -->
     <header class="bar">
       <div class="bar-l">
-        <div class="stage-tag" id="stageTag">STAGE 1 · INTEGER</div>
-        <div class="level-name" id="levelName">2-digit − 1-digit</div>
+        <div class="stage-tag" id="stageTag">STAGE 1 · 2 ± 1 DIGIT</div>
+        <div class="level-name" id="levelName">2-digit ± 1-digit, clean eighths</div>
         <div class="src-tag hidden" id="srcTag"></div>
       </div>
       <div class="bar-r">
@@ -39,17 +39,11 @@
       <div id="question" class="question">READY</div>
       <div id="feedback" class="feedback">Press START</div>
       <div id="answer" class="answer empty" data-placeholder="answer"></div>
-      <div id="fracPad" class="fracpad hidden">
+      <div id="fracPad" class="fracpad">
         <button data-f="1/8">⅛</button><button data-f="1/4">¼</button>
         <button data-f="3/8">⅜</button><button data-f="1/2">½</button>
         <button data-f="5/8">⅝</button><button data-f="3/4">¾</button>
         <button data-f="7/8">⅞</button>
-      </div>
-      <div id="pad16" class="fracpad pad16 hidden">
-        <button data-f="1/16">1/16</button><button data-f="3/16">3/16</button>
-        <button data-f="5/16">5/16</button><button data-f="7/16">7/16</button>
-        <button data-f="9/16">9/16</button><button data-f="11/16">11/16</button>
-        <button data-f="13/16">13/16</button><button data-f="15/16">15/16</button>
       </div>
       <div id="numpad" class="numpad">
         <button data-k="1">1</button><button data-k="2">2</button><button data-k="3">3</button>

@@ -1,45 +1,34 @@
-# Subtraction Drill
+# Price Drill
 
-A mental-arithmetic trainer for desk-style subtraction. The aim is automaticity —
-see the calculation, recognise it, answer — rather than working through a long
-conscious chain of steps. It does not teach an alternative method; it drills the
-one you already use until it stops needing thought.
+A mental-arithmetic trainer for desk-style broking maths: a two-digit price with
+an eighth, plus or minus another. The aim is automaticity — see the calculation,
+recognise it, answer — rather than working through a long conscious chain of
+steps. It does not teach an alternative method; it drills the one you already use
+until it stops needing thought.
 
-Every operand and every answer stays between **10 and 300**.
+Every operand carries a real eighth (⅛ ¼ ⅜ ½ ⅝ ¾ ⅞) — never a bare whole number.
+Subtraction comes up roughly twice as often as addition.
 
-## The four stages — 16 levels
+## The five levels
 
-**Stage 1 · Integer foundation**
-| | |
-|---|---|
-| 1A | 2-digit − 1-digit — `83 − 7` |
-| 1B | 2-digit − 2-digit, no borrowing — `74 − 32` |
-| 1C | 2-digit − 2-digit, borrowing — `91 − 46` |
-| 1D | 3-digit − 1-digit — `157 − 8` |
-| 1E | 3-digit − 2-digit — `183 − 47` |
+**2-digit ± 1-digit** — a price against a small spread
 
-**Stage 2 · Harder integer**
-| | |
-|---|---|
-| 2A | 3-digit − 2-digit, borrowing across hundreds — `231 − 45` |
-| 2B | 3-digit − 2-digit, cascade borrowing — `205 − 66` |
-| 2C | 3-digit − 3-digit — `287 − 206` |
-| 2D | 3-digit − 3-digit, multiple borrowing — `273 − 196` |
+| | | |
+|---|---|---|
+| A1 | clean eighths | `73 5/8 − 3 3/8` |
+| A2 | the eighths carry | `53 1/4 − 8 3/8` |
 
-**Stage 3 · Fraction-only** (retrieval speed, not fraction knowledge)
-| | |
-|---|---|
-| 3A | eighths, quarters, halves — `5/8 − 1/8` |
-| 3B | negative differences — `1/8 − 7/8` |
-| 3C | sixteenths — `11/16 − 3/8` · unlocked by mastering 3A **and** 3B |
+**2-digit ± 2-digit** — a price against a price
 
-**Stage 4 · Mixed** — the desk skill
-| | |
-|---|---|
-| 4A | easy integration — `274 3/4 − 58 3/8` |
-| 4B | fractional borrowing — `187 1/4 − 17 1/2` |
-| 4C | hard integer + fractional borrowing |
-| 4D | desk simulation — everything, sixteenths included |
+| | | |
+|---|---|---|
+| B1 | clean eighths | `99 7/8 − 88 5/8` |
+| B2 | the eighths carry | `63 1/8 − 40 3/8` |
+| B3 | eighths *and* tens carry | `52 1/2 − 19 7/8` |
+
+The ladder is built around the two things that actually cost time: whether the
+eighths column borrows into the whole number, and whether the whole number then
+borrows across tens. B3 is the full desk case.
 
 ## How it adapts
 
@@ -82,9 +71,12 @@ a timer:
 
 ## Dashboard
 
-Today's questions, accuracy, median, average and best; medians split by integer /
-fractions / mixed; and the weakest pattern named in each category — for example
-*"3-digit − 2-digit borrowing across hundreds"* or *"fractional borrowing"*.
+Today's questions, accuracy, median, average and best; medians split by **minus**
+and **plus**; and the weakest pattern named for each — for example
+*"2-digit ± 2-digit, minus, eighths + tens carry"*.
+
+Splitting by operation is the point: if subtraction is the slow one, the two
+medians say so directly.
 
 ## Answering
 
@@ -92,14 +84,12 @@ Tap it in on the on-screen numpad and hit **ANSWER !** — no typing. There is n
 text input on the page at all, so the iOS keyboard can never appear and the
 layout never shifts mid-drill.
 
-- `⌫` backspace, `C` clear, `−` toggles a negative (Stage 3B answers go negative)
-- the keypad adapts per level: digits on integer stages, fractions from stage 3,
-  and on fraction-only levels the digits collapse away since the answer is always a fraction
-- tap `135` then `⅞` for `135 7/8`
+- `⌫` backspace, `C` clear, `−` toggles a negative
+- tap `45` then `⅛` for `45 1/8`
 - a physical keyboard still works — digits, `-`, `/`, `.`, Backspace, Escape and Enter
 
-Mixed numbers, decimals and bare fractions are all accepted: `135 7/8`,
-`135.875`, `7/8`, `-3/4`.
+Mixed numbers, decimals and bare fractions are all accepted: `45 1/8`,
+`45.125`, `7/8`, `-3/4`.
 
 ## Files
 

@@ -1,4 +1,4 @@
-const CACHE_NAME = "drill-v7";
+const CACHE_NAME = "drill-v8";
 const ASSETS = [
   "./",
   "./index.html",
@@ -6,6 +6,7 @@ const ASSETS = [
   "./app.js",
   "./fx.js",
   "./drill.js",
+  "./gauntlet.js",
   "./manifest.webmanifest",
   "./icon-192.png",
   "./icon-512.png"

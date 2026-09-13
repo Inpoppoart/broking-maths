@@ -152,6 +152,24 @@ const Drill = (() => {
   }
   function itemsFor(level) { return level.items; }
 
+  // Build to an explicit level + operation, optionally overriding the level's
+  // carry spec. The gauntlet's boss blinds use this to bend the rules.
+  function buildWith(levelId, op, override, rng) {
+    const L = levelById(levelId);
+    if (!L) return null;
+    const item = L.items.filter(i => i.op === op)[0] || L.items[0];
+    const spec = override ? Object.assign({}, L.spec, override) : L.spec;
+    const q = genPrice(Object.assign({}, spec, { op: item.op, rng }));
+    if (!q) return null;
+    const sign = q.op === '-' ? '−' : '+';
+    return {
+      text: `${mixedText(q.a)} ${sign} ${mixedText(q.b)}`,
+      html: `${mixedHtml(q.a)} <span class="op">${sign}</span> ${mixedHtml(q.b)}`,
+      answer: q.ans, key: item.k, cat: catOf(item.k), level: L.id,
+      op: q.op, fracCarry: q.fracCarry, intCarry: q.intCarry,
+    };
+  }
+
   // ─── statistics ─────────────────────────────────────────────────
   // Learning-design constants.
   const TARGET_P    = 0.85;   // in-session success rate that maximises learning rate
@@ -330,11 +348,24 @@ const Drill = (() => {
     const nowMs = now == null ? Date.now() : now;
     const timed = !opts.warmup;
     const dk = dayKey(nowMs);
-    s.pat[q.key] = s.pat[q.key] || { n: 0, c: 0, t: [] };
-    s.lvl[q.level] = s.lvl[q.level] || { n: 0, c: 0, t: [] };
     s.days[dk] = s.days[dk] || { n: 0, c: 0, t: [], best: 0, cat: {} };
     const day = s.days[dk];
     day.cat[q.cat] = day.cat[q.cat] || { n: 0, c: 0, t: [] };
+    const logDay = () => {
+      bump(day, correct, ms, CAP_DAY, timed);
+      bump(day.cat[q.cat], correct, ms, CAP_DAY, timed);
+      if (correct && ms <= OUTLIER_MS && (!day.best || ms < day.best)) day.best = ms;
+      const ks = Object.keys(s.days).sort();
+      while (ks.length > KEEP_DAYS) delete s.days[ks.shift()];
+    };
+    // Gauntlet answers happen under score pressure. They are real answers, so the
+    // day's totals count them, but mixing them into the practice windows would
+    // make those medians mean two different things. Nothing else is touched —
+    // not even an empty bucket.
+    if (opts.gauntlet) { logDay(); return s; }
+
+    s.pat[q.key] = s.pat[q.key] || { n: 0, c: 0, t: [] };
+    s.lvl[q.level] = s.lvl[q.level] || { n: 0, c: 0, t: [] };
     bump(s.pat[q.key], correct, ms, CAP_PAT, timed);
     bump(s.lvl[q.level], correct, ms, CAP_LVL, timed);
     const lv = s.lvl[q.level];
@@ -345,11 +376,7 @@ const Drill = (() => {
     if (opts.mode === "review") {                        // expanding interval on success
       lv.str = correct ? Math.min((lv.str || 0) + 1, REVIEW_MAX_STR) : Math.max(0, (lv.str || 0) - 1);
     }
-    bump(day, correct, ms, CAP_DAY, timed);
-    bump(day.cat[q.cat], correct, ms, CAP_DAY, timed);
-    if (correct && ms <= OUTLIER_MS && (!day.best || ms < day.best)) day.best = ms;
-    const keys = Object.keys(s.days).sort();
-    while (keys.length > KEEP_DAYS) delete s.days[keys.shift()];
+    logDay();
     return s;
   }
 
@@ -453,7 +480,7 @@ const Drill = (() => {
 
   return { U, gcd, fracText, fracParts, mixedText, mixedHtml, parseAnswer,
            ri, pick, genPrice, EIGHTHS,
-           LEVELS, STAGES, levelById, levelIndex, itemsFor, buildQuestion, patternName, catOf,
+           LEVELS, STAGES, levelById, levelIndex, itemsFor, buildQuestion, buildWith, patternName, catOf,
            median, mean, clean, cv, weakness, difficultyFit, chooseItem, gate, gateOpen, recentAcc, recentN,
            chooseSource, reviewPool, reviewUrgency, reviewInterval,
            blank, load, save, record, summary, dayKey, nextLevel, weakestIn, wilsonLower,

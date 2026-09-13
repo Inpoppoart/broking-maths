@@ -32,7 +32,24 @@
       </div>
     </header>
 
-    <div class="gatebar"><div class="gatefill" id="gateFill"></div><span class="gatetext" id="gateText">20 to go</span></div>
+    <div class="modes">
+      <button id="modePractice" class="mode on">PRACTICE</button>
+      <button id="modeGauntlet" class="mode">🃏 GAUNTLET</button>
+    </div>
+
+    <div class="gatebar" id="gateBar"><div class="gatefill" id="gateFill"></div><span class="gatetext" id="gateText">20 to go</span></div>
+
+    <!-- ── gauntlet HUD ── -->
+    <div id="gHud" class="ghud hidden">
+      <div class="g-top">
+        <div><div class="g-name" id="gName">SMALL BLIND</div><div class="g-text" id="gText">Warm up</div></div>
+        <div class="g-right"><div class="g-money" id="gMoney">$4</div><div class="g-ante" id="gAnte">ANTE 1</div></div>
+      </div>
+      <div class="g-bar"><div class="g-fill" id="gFill"></div>
+        <span class="g-nums"><b id="gScore">0</b> / <span id="gTarget">300</span></span></div>
+      <div class="g-hands">HANDS <b id="gHands">8</b></div>
+      <div class="g-jokers" id="gJokers"></div>
+    </div>
 
     <!-- ── the drill ── -->
     <section class="drill">
@@ -59,6 +76,30 @@
         <button id="skipBtn">SKIP</button>
       </div>
     </section>
+
+    <!-- ── shop between blinds ── -->
+    <div id="shop" class="overlay hidden">
+      <div class="shop-card">
+        <div class="shop-head"><span id="shopWhy">BLIND CLEARED</span><span class="shop-money" id="shopMoney">$7</span></div>
+        <div class="shop-list" id="shopList"></div>
+        <div class="shop-owned" id="shopOwned"></div>
+        <button id="shopGo" class="primary big">NEXT BLIND</button>
+      </div>
+    </div>
+
+    <!-- ── run over ── -->
+    <div id="runOver" class="overlay hidden">
+      <div class="go-card">
+        <div class="go-title" id="roTitle">RUN OVER</div>
+        <div class="go-rank" id="roSub">Ante 3 · The Clock</div>
+        <div class="go-stats">
+          <div><span id="roAnte">3</span><small>ante</small></div>
+          <div><span id="roBest">1,240</span><small>best blind</small></div>
+          <div><span id="roJokers">2</span><small>jokers</small></div>
+        </div>
+        <button id="roAgain" class="primary big">NEW RUN</button>
+      </div>
+    </div>
 
     <!-- ── today, at a glance ── -->
     <section class="today">
@@ -91,6 +132,7 @@
 
   <script src="fx.js"></script>
   <script src="drill.js"></script>
+  <script src="gauntlet.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

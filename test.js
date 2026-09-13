@@ -1,5 +1,6 @@
 // Test suite for the drill engine.  Run with:  node test.js
 const D = require("./drill.js");
+const G = require("./gauntlet.js");
 
 let pass = 0, fail = 0; const fails = [];
 const ok = (c, m) => { c ? pass++ : (fail++, fails.push(m)); };
@@ -177,6 +178,112 @@ ok(seenMode.review/20000 > 0.1, `due levels get reviewed (${(seenMode.review/200
 ok(seenMode.interleave/20000 > 0.08, `earlier levels interleaved (${(seenMode.interleave/200).toFixed(0)}%)`);
 ok(seenMode.current/20000 > 0.5, `most questions are the current level (${(seenMode.current/200).toFixed(0)}%)`);
 eq(D.chooseSource(D.blank(), T0, rng).mode, "current", "cold start drills the current level");
+
+// ══ GAUNTLET ════════════════════════════════════════════════════════
+const gq = { level:'A1', op:'-', fracCarry:false, intCarry:false, answer:50*16+4 };
+const carryQ = { ...gq, fracCarry:true, intCarry:true };
+const bossRun = id => { const r = G.newRun(rng); r.blind = { ...r.blind, boss: G.BOSSES.filter(b=>b.id===id)[0] }; return r; };
+
+// ── scoring is chips x mult ──
+let g = G.newRun(rng);
+let gr = G.play(g, gq, 1000, true);
+eq(gr.chips, 60, "A1 base 25 + fast bonus 35");
+eq(gr.mult, 1, "mult opens at 1");
+eq(gr.scored, 60, "score is chips x mult");
+eq(g.score, 60, "run score accumulates");
+G.play(g, gq, 1000, true);
+ok(G.play(g, gq, 1000, true).mult >= 2, "a streak raises mult");
+
+// ── a miss costs a hand, scores nothing, breaks the streak ──
+g = G.newRun(rng);
+G.play(g, gq, 1000, true);
+gr = G.play(g, gq, 1000, false);
+eq(gr.scored, 0, "a miss scores nothing");
+eq(g.streak, 0, "a miss breaks the streak");
+eq(g.handsLeft, g.blind.hands - 2, "a miss still costs a hand");
+
+// ── jokers ──
+const withJoker = (ids, q, ms) => { const r = G.newRun(rng); r.jokers = ids; return G.play(r, q, ms, true); };
+eq(withJoker(['borrower'], carryQ, 5000).mult, 5, "BORROWER +4 Mult on a carry");
+eq(withJoker(['borrower'], gq, 5000).mult, 1, "BORROWER idle without a carry");
+eq(withJoker(['speed'], gq, 1000).mult, 1.5, "QUICK HANDS x1.5 under 2s");
+eq(withJoker(['speed'], gq, 5000).mult, 1, "QUICK HANDS idle when slow");
+eq(withJoker(['compound','compound'], gq, 5000).mult, 1.56, "COMPOUND stacks multiplicatively");
+eq(withJoker(['rope'], { ...gq, answer: 64*16 }, 5000).mult, 2, "TIGHTROPE x2 on a whole answer");
+eq(withJoker(['rope'], gq, 5000).mult, 1, "TIGHTROPE idle on a fractional answer");
+eq(withJoker(['both'], carryQ, 5000).mult, 9, "DOUBLE DIP +8 when both columns carry");
+eq(withJoker([], gq, 5000).mult, 1, "no jokers, no bonus");
+g = G.newRun(rng); g.jokers = ['insure'];
+ok(G.play(g, gq, 1000, false).insured, "STOP LOSS rescues the first miss");
+eq(G.play(g, gq, 1000, false).scored, 0, "STOP LOSS only fires once per blind");
+
+// ── boss modifiers ──
+eq(G.play(bossRun('clock'), gq, 5000, true).scored, 0, "THE CLOCK: over 4s scores nothing");
+ok(G.play(bossRun('clock'), gq, 1500, true).scored > 0, "THE CLOCK: under 4s scores");
+g = bossRun('drought');
+for (let i = 0; i < 6; i++) G.play(g, gq, 5000, true);
+eq(G.play(g, gq, 5000, true).mult, 1, "THE DROUGHT: streak gives no mult");
+g = bossRun('tax'); g.score = 100; G.play(g, gq, 1000, false);
+eq(g.score, 60, "THE TAX: a miss costs 40 chips");
+g = bossRun('tax'); g.score = 10; G.play(g, gq, 1000, false);
+eq(g.score, 0, "THE TAX never goes negative");
+eq(G.questionSpec(bossRun('vice'), rng).op, '-', "THE VICE: minus only");
+let allForced = true;
+for (let i = 0; i < 50; i++) if (!G.questionSpec(bossRun('carry'), rng).forceCarry) allForced = false;
+ok(allForced, "THE CARRY: every question forces a borrow");
+
+// ── blinds, antes, clearing and losing ──
+g = G.newRun(rng);
+eq(g.blind.blindIdx, 0, "a run opens on the small blind");
+G.advance(g, rng); G.advance(g, rng);
+ok(!!g.blind.boss, "the third blind always has a boss");
+G.advance(g, rng);
+eq(g.ante, 2, "past the boss the ante increases");
+eq(g.blindIdx, 0, "and the small blind comes round again");
+ok(G.targetFor(3,0) > G.targetFor(1,0), "targets escalate with ante");
+ok(G.poolFor(1).indexOf('B3') < 0, "early antes exclude the hardest level");
+ok(G.poolFor(5).indexOf('A1') < 0, "late antes drop the easiest level");
+g = G.newRun(rng); g.target = 60;
+gr = G.play(g, gq, 1000, true);
+eq(gr.state, 'cleared', "hitting the target clears the blind");
+ok(g.money > 4, "clearing pays out");
+g = G.newRun(rng); g.target = 1e9;
+for (let i = 0; i < g.blind.hands; i++) gr = G.play(g, gq, 1000, true);
+eq(gr.state, 'lost', "running out of hands ends the run");
+eq(g.over, true, "the run is marked over");
+
+// ── shop ──
+g = G.newRun(rng); g.money = 30;
+const offer = G.shopOffer(g, rng, 3);
+eq(offer.length, 3, "the shop offers three");
+eq(new Set(offer.map(j => j.id)).size, 3, "with no duplicates");
+ok(G.buy(g, offer[0].id), "affordable jokers can be bought");
+g.money = 0;
+eq(G.buy(g, offer[1].id), false, "broke means no purchase");
+g.money = 99; g.jokers = ['a','b','c','d','e'];
+eq(G.buy(g, 'borrower'), false, "joker slots cap at five");
+g.jokers = ['borrower'];
+eq(G.buy(g, 'borrower'), false, "no duplicate non-stacking jokers");
+ok(G.buy(g, 'compound') && G.buy(g, 'compound'), "stacking jokers may repeat");
+let noDup = true;
+for (let i = 0; i < 200; i++) {
+  const r = G.newRun(rng); r.jokers = ['borrower','speed'];
+  if (G.shopOffer(r, rng, 3).some(j => j.id === 'borrower' || j.id === 'speed')) noDup = false;
+}
+ok(noDup, "owned jokers never reappear in the shop");
+for (const j of G.JOKERS) {
+  let threw = false;
+  try { const r = G.newRun(rng); r.jokers = [j.id]; G.play(r, gq, 1200, true); G.play(r, carryQ, 5000, true); }
+  catch (e) { threw = true; }
+  ok(!threw, `${j.name} scores without crashing`);
+  ok(j.cost >= 3 && j.cost <= 8, `${j.name} is priced sanely`);
+}
+// gauntlet answers must never touch the practice windows
+const GS = D.blank();
+D.record(GS, q("px.2d1d.sub.clean","sub","A1"), true, 1500, T0, { gauntlet: true });
+eq(Object.keys(GS.pat).length, 0, "a gauntlet answer leaves pattern stats untouched");
+eq(Object.keys(GS.lvl).length, 0, "and level stats untouched");
+eq(D.summary(GS, T0).today.n, 1, "but today's total still counts it");
 
 console.log(`${fail ? "FAIL" : "PASS"} — ${pass} passed, ${fail} failed`);
 fails.slice(0, 25).forEach(f => console.log("  ✗ " + f));

@@ -24,6 +24,8 @@ let running = false;
 let streak = 0;
 let advanceTimer = 0;
 let answeredThisSession = 0;   // first few answers of a session are slow, not weak
+let mode = "practice";         // "practice" | "gauntlet"
+let run = null;                // active gauntlet run
 const rng = Math.random;
 
 // ─── level display ────────────────────────────────────────────────
@@ -47,15 +49,24 @@ function paintLevel() {
 
 // ─── the loop ─────────────────────────────────────────────────────
 function nextQuestion() {
-  // The question may come from an earlier level: spaced review, or interleaving.
-  const src = Drill.chooseSource(S, Date.now(), rng);
-  const L = Drill.levelById(src.id) || curLevel();
-  const item = Drill.chooseItem(L, S.pat, rng, cur && cur.key);
-  let q = Drill.buildQuestion(L, item, rng);
-  if (!q) q = Drill.buildQuestion(L, Drill.itemsFor(L)[0], rng);
-  q.src = src.mode;
-  cur = q;
-  paintSrc(src.mode, L);
+  let q;
+  if (mode === "gauntlet") {
+    const spec = Gauntlet.questionSpec(run, rng);
+    q = Drill.buildWith(spec.level, spec.op, spec.forceCarry ? { fracCarry: true } : null, rng);
+    if (!q) q = Drill.buildWith(spec.level, spec.op, null, rng);
+    q.src = "current";
+    cur = q;
+  } else {
+    // The question may come from an earlier level: spaced review, or interleaving.
+    const src = Drill.chooseSource(S, Date.now(), rng);
+    const L = Drill.levelById(src.id) || curLevel();
+    const item = Drill.chooseItem(L, S.pat, rng, cur && cur.key);
+    q = Drill.buildQuestion(L, item, rng);
+    if (!q) q = Drill.buildQuestion(L, Drill.itemsFor(L)[0], rng);
+    q.src = src.mode;
+    cur = q;
+    paintSrc(src.mode, L);
+  }
   qEl.innerHTML = q.html;
   qEl.className = "question";
   fbEl.textContent = "";
@@ -87,7 +98,10 @@ function submit() {
   Drill.record(S, cur, correct, ms, Date.now(), {
     warmup: answeredThisSession <= Drill.WARMUP_N,
     mode: cur.src,
+    gauntlet: mode === "gauntlet",
   });
+
+  if (mode === "gauntlet") { scoreHand(correct, ms); return; }
 
   if (correct) {
     streak++;
@@ -114,7 +128,7 @@ function submit() {
 }
 
 function skip() {
-  if (!running || !cur) return;
+  if (!running || !cur || mode === "gauntlet") return;
   clearTimeout(advanceTimer);
   streak = 0;
   el("streak").textContent = 0;
@@ -156,6 +170,144 @@ function start() {
   streak = 0;
   el("streak").textContent = 0;
   nextQuestion();
+}
+
+// ─── gauntlet ─────────────────────────────────────────────────────
+const num = n => n.toLocaleString("en-US");
+
+function setMode(next) {
+  if (running) { clearTimeout(advanceTimer); running = false; }
+  mode = next;
+  el("modePractice").classList.toggle("on", next === "practice");
+  el("modeGauntlet").classList.toggle("on", next === "gauntlet");
+  el("gHud").classList.toggle("hidden", next !== "gauntlet");
+  el("gateBar").classList.toggle("hidden", next === "gauntlet");
+  el("srcTag").classList.add("hidden");
+  el("shop").classList.add("hidden");
+  el("runOver").classList.add("hidden");
+  run = null;
+  cur = null;
+  streak = 0;
+  el("streak").textContent = 0;
+  setEntry("");
+  qEl.textContent = "READY";
+  qEl.className = "question";
+  fbEl.className = "feedback";
+  fbEl.textContent = next === "gauntlet" ? "Beat the blind. One miss costs a hand." : "Press START";
+  setGoLabel();
+  paintLevel();
+}
+
+function paintGauntlet() {
+  if (!run) return;
+  const b = run.blind;
+  el("gName").textContent = b.name;
+  el("gText").textContent = b.text;
+  el("gAnte").textContent = "ANTE " + run.ante;
+  el("gMoney").textContent = "$" + run.money;
+  el("gScore").textContent = num(run.score);
+  el("gTarget").textContent = num(run.target);
+  el("gHands").textContent = run.handsLeft;
+  const pct = Math.min(100, run.score / run.target * 100);
+  el("gFill").style.width = pct + "%";
+  el("gFill").className = "g-fill" + (pct >= 100 ? " done" : pct >= 60 ? " close" : "");
+  el("gHud").classList.toggle("boss", !!b.boss);
+  el("gJokers").innerHTML = run.jokers.map(id => {
+    const j = Gauntlet.jokerById(id);
+    return `<span class="jk" title="${esc(j.text)}">${esc(j.name)}</span>`;
+  }).join("");
+}
+
+function startRun() {
+  run = Gauntlet.newRun(rng);
+  running = true;
+  answeredThisSession = 0;
+  FX.audio();
+  streak = 0;
+  el("streak").textContent = 0;
+  el("runOver").classList.add("hidden");
+  el("shop").classList.add("hidden");
+  setGoLabel();
+  paintGauntlet();
+  nextQuestion();
+}
+
+function scoreHand(correct, ms) {
+  const res = Gauntlet.play(run, cur, ms, correct);
+  streak = run.streak;
+  el("streak").textContent = streak;
+
+  if (res.scored > 0) {
+    qEl.className = "question ok";
+    fbEl.className = "feedback score";
+    fbEl.innerHTML = `<span class="chips">${res.chips}</span><span class="x">×</span>` +
+                     `<span class="mult">${res.mult}</span><span class="eq">=</span>` +
+                     `<b>${num(res.scored)}</b>` + (res.insured ? ' <span class="was">saved</span>' : '');
+    FX.sfx.streak(Math.min(run.streak, 10));
+  } else {
+    qEl.className = "question no";
+    fbEl.className = "feedback bad";
+    const why = res.timedOut ? "TOO SLOW" : Drill.mixedHtml(cur.answer);
+    fbEl.innerHTML = `${why} <span class="was">${res.timedOut ? "" : "— missed"}</span>`;
+    FX.sfx.wrong();
+  }
+  paintGauntlet();
+  paintToday();
+  Drill.save(S);
+
+  clearTimeout(advanceTimer);
+  if (res.state === "cleared")    advanceTimer = setTimeout(openShop, 900);
+  else if (res.state === "lost")  advanceTimer = setTimeout(endRun, 1200);
+  else advanceTimer = setTimeout(nextQuestion, res.scored > 0 ? 620 : WRONG_MS);
+}
+
+function openShop() {
+  running = false;
+  const offer = Gauntlet.shopOffer(run, rng, 3);
+  el("shopWhy").textContent = run.blind.boss ? "BOSS DOWN" : "BLIND CLEARED";
+  el("shopMoney").textContent = "$" + run.money;
+  el("shopList").innerHTML = offer.map(j =>
+    `<button class="jk-card" data-j="${j.id}">
+       <span class="jk-name">${esc(j.name)}</span>
+       <span class="jk-text">${esc(j.text)}</span>
+       <span class="jk-cost">$${j.cost}</span>
+     </button>`).join("");
+  el("shopOwned").innerHTML = run.jokers.length
+    ? "held: " + run.jokers.map(id => esc(Gauntlet.jokerById(id).name)).join(" · ")
+    : "no jokers yet";
+  el("shopList").querySelectorAll("button[data-j]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      if (Gauntlet.buy(run, btn.dataset.j)) {
+        FX.sfx.promote();
+        btn.disabled = true;
+        btn.classList.add("bought");
+        el("shopMoney").textContent = "$" + run.money;
+        el("shopOwned").innerHTML = "held: " + run.jokers.map(id => esc(Gauntlet.jokerById(id).name)).join(" · ");
+      } else FX.sfx.wrong();
+    });
+  });
+  el("shop").classList.remove("hidden");
+}
+
+function leaveShop() {
+  el("shop").classList.add("hidden");
+  Gauntlet.advance(run, rng);
+  if (run.over) return endRun();
+  running = true;
+  setGoLabel();
+  paintGauntlet();
+  nextQuestion();
+}
+
+function endRun() {
+  running = false;
+  el("roTitle").textContent = run.won ? "RUN COMPLETE" : "RUN OVER";
+  el("roSub").textContent = `Ante ${run.ante} · ${run.blind.name}`;
+  el("roAnte").textContent = run.ante;
+  el("roBest").textContent = num(run.best);
+  el("roJokers").textContent = run.jokers.length;
+  el("runOver").classList.remove("hidden");
+  FX.sfx.wrong();
 }
 
 // ─── dashboard ────────────────────────────────────────────────────
@@ -212,7 +364,11 @@ function paintLadder() {
 }
 
 // ─── wiring ───────────────────────────────────────────────────────
-el("goBtn").addEventListener("click", () => { running ? submit() : start(); });
+el("goBtn").addEventListener("click", () => {
+  if (running) submit();
+  else if (mode === "gauntlet") startRun();
+  else start();
+});
 el("skipBtn").addEventListener("click", skip);
 // Physical keyboards are handled at the document level so the answer field never
 // needs focus. Keys that belong to a real control are left alone.
@@ -220,7 +376,7 @@ document.addEventListener("keydown", e => {
   if (e.metaKey || e.ctrlKey || e.altKey) return;
   const t = e.target, tag = t && t.tagName;
   if (tag === "INPUT" || tag === "TEXTAREA" || tag === "BUTTON" || tag === "SUMMARY") return;
-  if (e.key === "Enter") { e.preventDefault(); running ? submit() : start(); return; }
+  if (e.key === "Enter") { e.preventDefault(); running ? submit() : (mode === "gauntlet" ? startRun() : start()); return; }
   if (!running || locked) return;
   if (e.key === "Backspace")      { e.preventDefault(); press("del"); }
   else if (e.key === "Escape")    { press("clr"); }
@@ -254,6 +410,10 @@ el("autoLevel").addEventListener("change", e => {
   if (S.auto) { S.level = Drill.nextLevel(S); Drill.save(S); paintLevel(); paintLadder(); }
 });
 el("soundChk").addEventListener("change", e => FX.setSound(e.target.checked));
+el("modePractice").addEventListener("click", () => { setMode("practice"); FX.sfx.click(); });
+el("modeGauntlet").addEventListener("click", () => { setMode("gauntlet"); FX.sfx.click(); });
+el("shopGo").addEventListener("click", leaveShop);
+el("roAgain").addEventListener("click", startRun);
 el("resetBtn").addEventListener("click", () => {
   if (!confirm("Erase all drill history and progress?")) return;
   S = Drill.blank(); Drill.save(S);

@@ -30,6 +30,28 @@ The ladder is built around the two things that actually cost time: whether the
 eighths column borrows into the whole number, and whether the whole number then
 borrows across tens. B3 is the full desk case.
 
+## Two modes
+
+**PRACTICE** is the training mode described below: accuracy first, spaced review,
+no score. This is what actually builds the skill.
+
+**🃏 GAUNTLET** is the one you play when practice has got boring. It is a run:
+
+- Every answer scores **Chips × Mult**. Harder shapes are worth more chips,
+  answering fast adds more, and a streak raises the multiplier.
+- Each **blind** gives you a score target and 8 hands. Miss a question and you
+  lose the hand anyway — so there is no upside to guessing.
+- Clear a blind and you earn money, then **buy jokers**: *+4 Mult when the
+  eighths borrow*, *×1.5 Mult under 2 seconds*, *×2 Mult if the answer lands on
+  a whole number*. They stack, and they change which questions you want to see.
+- Every third blind is a **boss** that bends a rule — minus only, every answer
+  borrows, four seconds a hand, target doubled, streak gives no mult.
+- Run out of hands below target and the run is over. Eight antes to win.
+
+Gauntlet answers are played under score pressure, so they count toward today's
+totals but are deliberately kept out of the practice medians — otherwise those
+numbers would mean two different things.
+
 ## How it adapts
 
 Every answer records the level, the pattern, whether borrowing was required, the

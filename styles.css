@@ -64,6 +64,82 @@ body {
 .gatefill.warn  { background: linear-gradient(90deg, #8a5a1f, var(--gold)); }
 .gatetext { position: absolute; inset: 0; display: grid; place-items: center; font-family: var(--mono); font-size: 0.6rem; font-weight: 700; color: #fff; text-shadow: 0 1px 3px rgba(0,0,0,0.9); padding: 0 0.4rem; white-space: nowrap; overflow: hidden; }
 
+/* ── mode switch ── */
+.modes { display: flex; gap: 0.3rem; margin-bottom: 0.45rem; }
+.modes .mode {
+  flex: 1; padding: 0.5rem 0; min-height: 40px;
+  font-family: var(--pixel); font-size: 0.46rem; letter-spacing: 0.05em;
+  background: var(--panel); border: 1px solid var(--border2); border-radius: 8px;
+  color: var(--muted); cursor: pointer;
+}
+.modes .mode.on { color: var(--bg); background: var(--green); border-color: var(--green); }
+#modeGauntlet.on { background: var(--gold); border-color: var(--gold); }
+
+/* ── gauntlet HUD ── */
+.ghud {
+  background: linear-gradient(180deg, #16112a, var(--bg2));
+  border: 1.5px solid #3b2f63; border-radius: 12px;
+  padding: 0.55rem 0.6rem; margin-bottom: 0.5rem;
+}
+.ghud.boss { border-color: var(--red); background: linear-gradient(180deg, #2a1119, var(--bg2)); }
+.g-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 0.5rem; }
+.g-name { font-family: var(--pixel); font-size: 0.5rem; color: var(--gold); letter-spacing: 0.04em; }
+.ghud.boss .g-name { color: var(--red); }
+.g-text { font-size: 0.66rem; color: var(--muted); margin-top: 0.24rem; }
+.g-right { text-align: right; flex-shrink: 0; }
+.g-money { font-family: var(--mono); font-size: 1.05rem; font-weight: 800; color: var(--green); line-height: 1; }
+.g-ante { font-family: var(--pixel); font-size: 0.34rem; color: var(--muted); margin-top: 4px; letter-spacing: 0.08em; }
+.g-bar {
+  position: relative; height: 20px; margin-top: 0.5rem;
+  background: #0b0814; border: 1px solid #3b2f63; border-radius: 10px; overflow: hidden;
+}
+.g-fill { height: 100%; width: 0%; background: linear-gradient(90deg, #6b4bd6, #a07bff); transition: width 0.35s cubic-bezier(.2,.9,.3,1); }
+.g-fill.close { background: linear-gradient(90deg, #a07bff, var(--gold)); }
+.g-fill.done  { background: linear-gradient(90deg, var(--gold), var(--green)); }
+.g-nums {
+  position: absolute; inset: 0; display: grid; place-items: center;
+  font-family: var(--mono); font-size: 0.68rem; font-weight: 800; color: #fff;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.9); font-variant-numeric: tabular-nums;
+}
+.g-hands { font-family: var(--pixel); font-size: 0.38rem; color: var(--muted); margin-top: 0.4rem; letter-spacing: 0.08em; }
+.g-hands b { color: var(--cyan); font-size: 1.6em; }
+.g-jokers { display: flex; flex-wrap: wrap; gap: 0.25rem; margin-top: 0.4rem; }
+.jk {
+  font-family: var(--pixel); font-size: 0.32rem; letter-spacing: 0.04em;
+  padding: 0.22rem 0.34rem; border-radius: 4px;
+  border: 1px solid var(--gold); color: var(--gold); background: rgba(255,210,63,0.1);
+}
+
+/* the Balatro moment: chips x mult, landing in the fixed-height feedback box */
+.feedback.score { color: var(--text); gap: 0.3rem; }
+.feedback.score .chips { color: var(--cyan); font-weight: 800; }
+.feedback.score .mult  { color: var(--red); font-weight: 800; }
+.feedback.score .x, .feedback.score .eq { color: var(--muted); font-size: 0.8em; }
+.feedback.score b { color: var(--gold); font-size: 1.35em; animation: pop 0.28s cubic-bezier(.2,1.5,.4,1); }
+@keyframes pop { 0% { transform: scale(0.6); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+
+/* ── shop ── */
+.shop-card {
+  width: 100%; max-width: 400px;
+  background: linear-gradient(180deg, #16112a, var(--bg2));
+  border: 1.5px solid #3b2f63; border-radius: 16px; padding: 1rem 0.9rem;
+}
+.shop-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 0.8rem; }
+.shop-head span:first-child { font-family: var(--pixel); font-size: 0.58rem; color: var(--gold); }
+.shop-money { font-family: var(--mono); font-size: 1.2rem; font-weight: 800; color: var(--green); }
+.shop-list { display: flex; flex-direction: column; gap: 0.4rem; }
+.jk-card {
+  display: grid; grid-template-columns: 1fr auto; gap: 0.2rem 0.5rem; text-align: left;
+  background: var(--panel2); border: 1.5px solid var(--border2); border-radius: 10px;
+  padding: 0.6rem 0.7rem; cursor: pointer; width: 100%;
+}
+.jk-card:active { border-color: var(--gold); }
+.jk-card.bought { opacity: 0.45; border-color: var(--green); }
+.jk-name { font-family: var(--pixel); font-size: 0.46rem; color: var(--gold); }
+.jk-text { grid-column: 1; font-size: 0.72rem; color: var(--muted); line-height: 1.35; }
+.jk-cost { grid-row: 1 / 3; align-self: center; font-family: var(--mono); font-size: 1rem; font-weight: 800; color: var(--green); }
+.shop-owned { font-size: 0.66rem; color: var(--muted); margin: 0.7rem 0 0.2rem; min-height: 1.2em; }
+
 /* ── the drill ── */
 .drill {
   background: linear-gradient(180deg, var(--panel), var(--bg2));
